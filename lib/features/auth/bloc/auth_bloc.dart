@@ -135,7 +135,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
-    final profile = await _authRepository.loadMyProfile();
+    // A valid session means authenticated even if the profile read fails (e.g.
+    // a transient network error) — otherwise the app would be stuck on the
+    // splash. A null profile is backfilled by the live subscription below.
+    AppUser? profile;
+    try {
+      profile = await _authRepository.loadMyProfile();
+    } catch (_) {
+      profile = null;
+    }
     emit(AuthState(status: AuthStatus.authenticated, user: profile));
 
     // Keep the profile live so a promotion flips controls without re-login.

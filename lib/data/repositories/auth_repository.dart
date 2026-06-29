@@ -29,8 +29,13 @@ class AuthRepository {
 
   /// Emits the current user's id on sign-in and on the restored initial
   /// session, and `null` on sign-out. Drives session restore in [AuthBloc].
+  ///
+  /// `distinct` collapses the frequent same-user events (token refresh, user
+  /// updated) so the BLoC does not reload the profile and re-subscribe on every
+  /// token refresh — it reacts only when the signed-in identity actually
+  /// changes.
   Stream<String?> userIdChanges() =>
-      _auth.onAuthStateChange.map((state) => state.session?.user.id);
+      _auth.onAuthStateChange.map((state) => state.session?.user.id).distinct();
 
   /// Registers a new account. [fullName] is carried in user metadata; the
   /// `handle_new_user` DB trigger creates the matching `users` profile row with

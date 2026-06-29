@@ -56,8 +56,16 @@ class _RegisterPageState extends State<RegisterPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create account')),
       body: BlocListener<AuthBloc, AuthState>(
-        listenWhen: (prev, curr) => prev.errorMessage != curr.errorMessage,
+        listenWhen: (prev, curr) =>
+            prev.status != curr.status ||
+            prev.errorMessage != curr.errorMessage,
         listener: (context, state) {
+          // On success the session becomes authenticated; this page was pushed
+          // on top of AuthGate, so pop back to let AuthGate show the app.
+          if (state.status == AuthStatus.authenticated) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            return;
+          }
           if (state.errorMessage != null) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
