@@ -12,9 +12,9 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 
 ## Current Status
 
-- Active branch: _(update each session)_
-- Current milestone: _(update each session — see Milestone Plan)_
-- Milestone goal: _(update each session)_
+- Active branch: `dev` (milestone branches created; no milestone started yet)
+- Current milestone: none yet — next is `feature/01-auth-rls` (run `/code-branch`)
+- Milestone goal: see MILESTONES.md → feature/01-auth-rls (auth + RLS, the DPA guarantee)
 
 ## Commands
 
@@ -101,11 +101,21 @@ All secrets live in `.env` (never committed). See `.env.example`:
 
 ## Milestone Plan
 
-_(To be populated after `/git-setup` defines the branches in MILESTONES.md.)_
 One branch = one milestone. Never work across two branches at once. Run
 `/code-review` before merging and `/testing` before closing a milestone.
 Build backend-first (per pressure-test): conflict constraint + RLS + FCM dispatch
-before polishing UI.
+before polishing UI. Full goals/acceptance criteria live in MILESTONES.md.
+
+All feature branches come off `dev`; `dev` merges into `main` after testing.
+
+| # | Branch | Milestone |
+| - | ------ | --------- |
+| 1 | `feature/01-auth-rls` | Auth + RLS foundation — `get_my_role()`, users read matrix, no cross-user `email` (the DPA guarantee). |
+| 2 | `feature/02-cohorts` | Faculty/program/cohort + self-service join-by-code, remove-student, promote-class-rep. |
+| 3 | `feature/03-scheduling` | Conflict-free scheduling — schedule/edit/cancel over the `EXCLUDE` constraints (core invariant). |
+| 4 | `feature/04-calendar-realtime` | `table_calendar` day/week/semester views + live Realtime + offline cache. |
+| 5 | `feature/05-notifications` | DB webhook → `dispatch-fcm` push + in-app notification history + device tokens. |
+| 6 | `feature/06-instrumentation-polish` | `daily-snapshot` + keep-alive verification + DPA deletion path + offline/error polish. |
 
 ## Key Decisions (from ARCHITECTURE.md / PRESSURE-TEST.md)
 
