@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../data/models/app_user.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../cohort/view/cohort_page.dart';
+import '../../scheduling/view/manage_lectures_page.dart';
 
 /// Template calendar screen (Journey 2: student sees their schedule).
 ///
@@ -27,6 +29,18 @@ class _CalendarPageState extends State<CalendarPage> {
       appBar: AppBar(
         title: const Text('My schedule'),
         actions: [
+          if (context.select<AuthBloc, bool>(
+            (b) => b.state.user?.role == UserRole.classRep,
+          ))
+            IconButton(
+              icon: const Icon(Icons.edit_calendar_outlined),
+              tooltip: 'Manage schedule',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ManageLecturesPage(),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.people_outline),
             tooltip: 'My cohort',
