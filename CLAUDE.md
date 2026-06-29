@@ -12,9 +12,11 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 
 ## Current Status
 
-- Active branch: `dev` (milestone branches created; no milestone started yet)
-- Current milestone: none yet — next is `feature/01-auth-rls` (run `/code-branch`)
-- Milestone goal: see MILESTONES.md → feature/01-auth-rls (auth + RLS, the DPA guarantee)
+- Active branch: `dev`
+- Completed: `feature/01-auth-rls` ✅ and `feature/02-cohorts` ✅ (both merged)
+- Next milestone: `feature/03-scheduling` (run `/code-branch`)
+- Milestone goal: see MILESTONES.md → feature/03-scheduling (conflict-free scheduling
+  over the EXCLUDE constraints — the core invariant)
 
 ## Commands
 
