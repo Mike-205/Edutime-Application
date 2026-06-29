@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../auth/bloc/auth_bloc.dart';
+import '../../cohort/view/cohort_page.dart';
 
 /// Template calendar screen (Journey 2: student sees their schedule).
 ///
@@ -26,6 +27,19 @@ class _CalendarPageState extends State<CalendarPage> {
       appBar: AppBar(
         title: const Text('My schedule'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outline),
+            tooltip: 'My cohort',
+            onPressed: () {
+              final cohortId = context.read<AuthBloc>().state.user?.cohortId;
+              if (cohortId == null) return;
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CohortPage(cohortId: cohortId),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',

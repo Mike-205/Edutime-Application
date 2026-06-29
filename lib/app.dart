@@ -5,6 +5,7 @@ import 'core/config/env.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/cohort_repository.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/view/auth_gate.dart';
 
@@ -20,8 +21,15 @@ class EdutimeApp extends StatelessWidget {
       return const _SetupRequiredApp();
     }
 
-    return RepositoryProvider(
-      create: (_) => AuthRepository(SupabaseClientProvider.client),
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(
+          create: (_) => AuthRepository(SupabaseClientProvider.client),
+        ),
+        RepositoryProvider(
+          create: (_) => CohortRepository(SupabaseClientProvider.client),
+        ),
+      ],
       child: BlocProvider(
         create: (context) =>
             AuthBloc(context.read<AuthRepository>())

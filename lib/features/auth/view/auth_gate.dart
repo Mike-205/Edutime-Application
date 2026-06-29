@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../calendar/view/calendar_page.dart';
+import '../../cohort/view/cohort_gate.dart';
 import '../bloc/auth_bloc.dart';
 import 'login_page.dart';
 
@@ -17,7 +17,7 @@ class AuthGate extends StatelessWidget {
       buildWhen: (prev, curr) => prev.status != curr.status,
       builder: (context, state) {
         return switch (state.status) {
-          AuthStatus.authenticated => const CalendarPage(),
+          AuthStatus.authenticated => const CohortGate(),
           AuthStatus.unauthenticated => const LoginPage(),
           AuthStatus.unknown => const _SplashScreen(),
         };
