@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import '../../auth/bloc/auth_bloc.dart';
 
 /// Template calendar screen (Journey 2: student sees their schedule).
 ///
@@ -20,7 +23,17 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My schedule')),
+      appBar: AppBar(
+        title: const Text('My schedule'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            onPressed: () =>
+                context.read<AuthBloc>().add(const AuthSignOutRequested()),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           TableCalendar<void>(
