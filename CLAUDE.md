@@ -13,10 +13,10 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 ## Current Status
 
 - Active branch: `dev`
-- Completed: `feature/01-auth-rls` ✅ and `feature/02-cohorts` ✅ (both merged)
-- Next milestone: `feature/03-scheduling` (run `/code-branch`)
-- Milestone goal: see MILESTONES.md → feature/03-scheduling (conflict-free scheduling
-  over the EXCLUDE constraints — the core invariant)
+- Completed: `feature/01-auth-rls` ✅, `feature/02-cohorts` ✅, `feature/03-scheduling` ✅ (all merged)
+- Next milestone: `feature/04-calendar-realtime` (run `/code-branch`)
+- Milestone goal: see MILESTONES.md → feature/04-calendar-realtime (table_calendar
+  day/week/semester views + live Realtime + offline cache)
 
 ## Commands
 
