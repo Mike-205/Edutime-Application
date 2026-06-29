@@ -7,8 +7,13 @@ export interface Slot {
 }
 
 function hhmm(iso: string): string {
-  // Readable enough for an error message; the client localizes elsewhere.
-  return new Date(iso).toISOString().slice(11, 16);
+  // Show the time in the users' timezone (Chuka is EAT), not UTC, so the
+  // conflict message matches what the rep typed.
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: "Africa/Nairobi",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /// Returns a readable conflict message if [slot] would clash with an existing
@@ -39,7 +44,7 @@ export async function findConflict(
   if (!data || data.length === 0) return null;
 
   const clash = data[0];
-  const window = `${hhmm(clash.start_time)}–${hhmm(clash.end_time)} UTC`;
+  const window = `${hhmm(clash.start_time)}–${hhmm(clash.end_time)}`;
   return clash.venue_id === opts.venueId
     ? `That venue is taken by ${clash.unit_name} (${window}).`
     : `Your cohort already has ${clash.unit_name} (${window}) in that slot.`;
