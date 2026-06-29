@@ -34,6 +34,12 @@ enable_confirmations = false  # MVP: enable in production before launch
 [functions.schedule-lecture]
 verify_jwt = true
 
+[functions.edit-lecture]
+verify_jwt = true
+
+[functions.cancel-lecture]
+verify_jwt = true
+
 [functions.join-cohort-by-code]
 verify_jwt = true
 

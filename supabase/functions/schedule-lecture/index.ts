@@ -1,35 +1,126 @@
 // schedule-lecture — UX layer over the DB conflict constraints.
 //
-// Responsibility (see ARCHITECTURE.md "Data Flow — Core Action"):
-//   1. Run a readable pre-check and, on conflict, return a forwardable error
-//      ("Venue LH3 is taken by Stats II, 14:00-16:00") BEFORE attempting insert.
-//   2. Insert the lecture (one row, or one row per occurrence for a recurring
-//      series sharing a recurrence_group_id).
-//   3. The Postgres EXCLUDE constraints remain the ground truth — a constraint
-//      violation is caught and surfaced as the same readable conflict error.
-//   4. Append a lecture_audit_log row.
-//
-// This function is NOT the authority. The database is. Implemented in the
-// "scheduling" milestone (/code-branch).
+//   1. Readable pre-check; on a clash return a forwardable error before insert.
+//   2. Materialize occurrences (one row per week for a recurring series, sharing
+//      a recurrence_group_id) and insert them in one statement.
+//   3. The EXCLUDE constraints are the ground truth: a race that slips past the
+//      pre-check is caught as exclusion_violation and surfaced as the same
+//      readable conflict.
+//   4. Append a lecture_audit_log row per created occurrence.
+// The database is the authority — never this function.
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, json } from "../_shared/cors.ts";
+import { adminClient, getCallerId, getCallerProfile } from "../_shared/auth.ts";
+import { findConflict, isExclusionViolation, Slot } from "../_shared/lectures.ts";
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_WEEKS = 26;
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "invalid_body" }, 400);
   }
 
-  // TODO(scheduling milestone): authenticate caller, validate class_rep role,
-  // run pre-check, materialize occurrences, insert under constraint, audit-log.
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-  void supabase; // referenced once milestone logic lands
+  const unitName = (body.unit_name as string | undefined)?.trim();
+  const lecturerName = (body.lecturer_name as string | undefined)?.trim();
+  const venueId = body.venue_id as string | undefined;
+  const startTime = body.start_time as string | undefined;
+  const endTime = body.end_time as string | undefined;
+  const weeks = Number(body.weeks ?? 1);
 
-  return new Response(
-    JSON.stringify({ error: "not_implemented", function: "schedule-lecture" }),
-    { status: 501, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  if (!unitName || !lecturerName || !venueId || !startTime || !endTime) {
+    return json({ error: "missing_fields" }, 400);
+  }
+  const startMs = Date.parse(startTime);
+  const endMs = Date.parse(endTime);
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
+    return json({ error: "invalid_time_range" }, 400);
+  }
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > MAX_WEEKS) {
+    return json({ error: "invalid_weeks" }, 400);
+  }
+
+  const admin = adminClient();
+  const callerId = await getCallerId(req, admin);
+  if (!callerId) return json({ error: "unauthorized" }, 401);
+
+  const caller = await getCallerProfile(admin, callerId);
+  if (!caller) return json({ error: "lookup_failed" }, 500);
+  if (caller.role !== "class_rep" || !caller.cohortId) {
+    return json({ error: "forbidden" }, 403);
+  }
+  const cohortId = caller.cohortId;
+
+  // Materialize occurrences (weekly).
+  const recurring = weeks > 1;
+  const groupId = recurring ? crypto.randomUUID() : null;
+  const slots: Slot[] = [];
+  for (let i = 0; i < weeks; i++) {
+    slots.push({
+      start: new Date(startMs + WEEK_MS * i).toISOString(),
+      end: new Date(endMs + WEEK_MS * i).toISOString(),
+    });
+  }
+
+  // Pre-check each occurrence for a readable error before any write.
+  for (let i = 0; i < slots.length; i++) {
+    let message: string | null;
+    try {
+      message = await findConflict(admin, {
+        cohortId,
+        venueId,
+        slot: slots[i],
+      });
+    } catch {
+      return json({ error: "precheck_failed" }, 500);
+    }
+    if (message) {
+      return json({
+        error: "conflict",
+        message: recurring ? `Week ${i + 1}: ${message}` : message,
+      }, 409);
+    }
+  }
+
+  const rows = slots.map((slot) => ({
+    cohort_id: cohortId,
+    unit_name: unitName,
+    lecturer_name: lecturerName,
+    venue_id: venueId,
+    start_time: slot.start,
+    end_time: slot.end,
+    recurrence_group_id: groupId,
+    recurrence_rule: recurring ? `WEEKLY;COUNT=${weeks}` : null,
+    created_by: callerId,
+  }));
+
+  const { data: inserted, error: insertErr } = await admin
+    .from("lectures")
+    .insert(rows)
+    .select();
+  if (insertErr) {
+    // The constraint is the authority — a race that beat the pre-check lands here.
+    if (isExclusionViolation(insertErr)) {
+      return json({ error: "conflict", message: "That slot was just taken." }, 409);
+    }
+    return json({ error: "insert_failed" }, 500);
+  }
+
+  // Audit each created occurrence.
+  await admin.from("lecture_audit_log").insert(
+    (inserted ?? []).map((row) => ({
+      lecture_id: row.id,
+      action: "created",
+      changed_by: callerId,
+      snapshot: row,
+    })),
   );
+
+  return json({ created: inserted?.length ?? 0, lectures: inserted }, 201);
 });
