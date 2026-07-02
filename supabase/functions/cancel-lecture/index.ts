@@ -4,6 +4,7 @@
 
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { adminClient, getCallerId, getCallerProfile } from "../_shared/auth.ts";
+import { notifyEventChange } from "../_shared/notify.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -30,7 +31,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: existing, error: loadErr } = await admin
     .from("events")
-    .select("id, cohort_id, recurrence_group_id")
+    .select("id, cohort_id, recurrence_group_id, course_id, title, start_time")
     .eq("id", lectureId)
     .maybeSingle();
   if (loadErr) return json({ error: "lookup_failed" }, 500);
@@ -61,6 +62,18 @@ Deno.serve(async (req: Request) => {
       snapshot: row,
     })),
   );
+
+  // One notification for the action (a whole series -> one), keyed off the
+  // occurrence the rep acted on.
+  await notifyEventChange(admin, {
+    cohortId: caller.cohortId,
+    changeType: "canceled",
+    title: (existing.title as string | null) ?? null,
+    courseId: existing.course_id as string | null,
+    startIso: existing.start_time as string,
+    eventId: lectureId,
+    excludeUserId: callerId,
+  });
 
   return json({ canceled: canceled?.length ?? 0 }, 200);
 });

@@ -4,6 +4,7 @@
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { adminClient, getCallerId, getCallerProfile } from "../_shared/auth.ts";
 import { findConflict, isExclusionViolation } from "../_shared/lectures.ts";
+import { notifyEventChange } from "../_shared/notify.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -90,6 +91,16 @@ Deno.serve(async (req: Request) => {
     action: "updated",
     changed_by: callerId,
     snapshot: updated,
+  });
+
+  await notifyEventChange(admin, {
+    cohortId: caller.cohortId,
+    changeType: "updated",
+    title: (updated?.title as string | null) ?? null,
+    courseId: updated?.course_id as string | null,
+    startIso: updated?.start_time as string,
+    eventId: lectureId,
+    excludeUserId: callerId,
   });
 
   return json({ event: updated }, 200);
