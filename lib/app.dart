@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/config/env.dart';
+import 'core/push/push_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/cohort_repository.dart';
 import 'data/repositories/lecture_repository.dart';
+import 'data/repositories/notification_repository.dart';
 import 'features/auth/bloc/auth_bloc.dart';
 import 'features/auth/view/auth_gate.dart';
 
@@ -33,6 +35,13 @@ class EdutimeApp extends StatelessWidget {
         RepositoryProvider(
           create: (_) => LectureRepository(SupabaseClientProvider.client),
         ),
+        RepositoryProvider(
+          create: (_) => NotificationRepository(SupabaseClientProvider.client),
+        ),
+        RepositoryProvider(
+          create: (context) =>
+              PushService(context.read<NotificationRepository>()),
+        ),
       ],
       child: BlocProvider(
         create: (context) =>
@@ -42,7 +51,16 @@ class EdutimeApp extends StatelessWidget {
           title: 'Edutime',
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
-          home: const AuthGate(),
+          // Register the FCM device token once the user is authenticated.
+          home: BlocListener<AuthBloc, AuthState>(
+            listenWhen: (prev, curr) => prev.status != curr.status,
+            listener: (context, state) {
+              if (state.status == AuthStatus.authenticated) {
+                context.read<PushService>().start();
+              }
+            },
+            child: const AuthGate(),
+          ),
         ),
       ),
     );

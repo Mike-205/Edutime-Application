@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:edutime/data/models/app_user.dart';
 import 'package:edutime/data/models/lecture.dart';
+import 'package:edutime/data/models/notification.dart';
 import 'package:edutime/data/repositories/lecture_repository.dart';
+import 'package:edutime/data/repositories/notification_repository.dart';
 import 'package:edutime/features/auth/bloc/auth_bloc.dart';
 import 'package:edutime/features/calendar/view/calendar_page.dart';
 import 'package:flutter/material.dart';
@@ -13,10 +15,14 @@ import 'package:table_calendar/table_calendar.dart';
 
 class MockLectureRepository extends Mock implements LectureRepository {}
 
+class MockNotificationRepository extends Mock
+    implements NotificationRepository {}
+
 class MockAuthBloc extends MockBloc<AuthEvent, AuthState> implements AuthBloc {}
 
 void main() {
   late MockLectureRepository repo;
+  late MockNotificationRepository notifRepo;
   late MockAuthBloc authBloc;
 
   const student = AppUser(
@@ -31,6 +37,10 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({}); // empty cache
     repo = MockLectureRepository();
+    notifRepo = MockNotificationRepository();
+    when(
+      () => notifRepo.watchMine(),
+    ).thenAnswer((_) => Stream.value(const <NotificationItem>[]));
     authBloc = MockAuthBloc();
     whenListen(
       authBloc,
@@ -44,7 +54,10 @@ void main() {
   });
 
   Widget pumpable() => MultiRepositoryProvider(
-    providers: [RepositoryProvider<LectureRepository>.value(value: repo)],
+    providers: [
+      RepositoryProvider<LectureRepository>.value(value: repo),
+      RepositoryProvider<NotificationRepository>.value(value: notifRepo),
+    ],
     child: BlocProvider<AuthBloc>.value(
       value: authBloc,
       child: const MaterialApp(home: CalendarPage()),
