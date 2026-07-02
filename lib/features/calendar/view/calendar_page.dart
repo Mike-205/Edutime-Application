@@ -6,9 +6,12 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/models/lecture.dart';
 import '../../../data/repositories/lecture_repository.dart';
+import '../../../data/repositories/notification_repository.dart';
 import '../../../data/repositories/schedule_cache.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../cohort/view/cohort_page.dart';
+import '../../notifications/bloc/notification_bloc.dart';
+import '../../notifications/view/notifications_page.dart';
 import '../../scheduling/view/manage_lectures_page.dart';
 import '../../venues/view/venue_availability_page.dart';
 import '../bloc/calendar_bloc.dart';
@@ -29,12 +32,21 @@ class CalendarPage extends StatelessWidget {
         body: Center(child: Text('Join a cohort to see its schedule.')),
       );
     }
-    return BlocProvider(
-      create: (context) => CalendarBloc(
-        repository: context.read<LectureRepository>(),
-        cache: const ScheduleCache(),
-        cohortId: cohortId,
-      )..add(const CalendarStarted()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => CalendarBloc(
+            repository: context.read<LectureRepository>(),
+            cache: const ScheduleCache(),
+            cohortId: cohortId,
+          )..add(const CalendarStarted()),
+        ),
+        BlocProvider(
+          create: (context) =>
+              NotificationBloc(context.read<NotificationRepository>())
+                ..add(const NotificationsStarted()),
+        ),
+      ],
       child: const _CalendarView(),
     );
   }
@@ -76,6 +88,21 @@ class _CalendarViewState extends State<_CalendarView> {
       appBar: AppBar(
         title: const Text('My schedule'),
         actions: [
+          BlocBuilder<NotificationBloc, NotificationState>(
+            builder: (context, notif) => IconButton(
+              tooltip: 'Notifications',
+              icon: Badge(
+                isLabelVisible: notif.unread > 0,
+                label: Text('${notif.unread}'),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const NotificationsPage(),
+                ),
+              ),
+            ),
+          ),
           if (isRep)
             IconButton(
               icon: const Icon(Icons.edit_calendar_outlined),
