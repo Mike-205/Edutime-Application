@@ -142,7 +142,7 @@ class _LectureTile extends StatelessWidget {
     final when = DateFormat('EEE d MMM, HH:mm').format(start);
     final endTime = DateFormat('HH:mm').format(end);
     return ListTile(
-      title: Text(lecture.unitName),
+      title: Text(lecture.displayName),
       subtitle: Text(
         '${lecture.lecturerName}\n$when – $endTime'
         '${lecture.recurrenceGroupId != null ? ' • weekly' : ''}',

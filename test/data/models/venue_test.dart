@@ -4,9 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('venueTypeFromDb', () {
     test('maps each known type', () {
-      expect(venueTypeFromDb('lecture_hall'), VenueType.lectureHall);
-      expect(venueTypeFromDb('lab'), VenueType.lab);
-      expect(venueTypeFromDb('tutorial_room'), VenueType.tutorialRoom);
+      expect(venueTypeFromDb('physical'), VenueType.physical);
       expect(venueTypeFromDb('online'), VenueType.online);
     });
 
@@ -15,16 +13,35 @@ void main() {
     });
   });
 
-  test('Venue.fromMap parses a row', () {
-    final venue = Venue.fromMap({
-      'id': 'v1',
-      'name': 'LH1',
-      'type': 'lecture_hall',
-      'building': 'Main Block',
+  group('Venue.fromMap', () {
+    test('composes a physical venue name from building + room', () {
+      final venue = Venue.fromMap({
+        'id': 'v1',
+        'type': 'physical',
+        'label': null,
+        'room': {
+          'number': '101',
+          'building': {'abbreviation': 'CC', 'name': 'Conflict Complex'},
+        },
+      });
+      expect(venue.id, 'v1');
+      expect(venue.type, VenueType.physical);
+      expect(venue.displayName, 'CC-101');
     });
-    expect(venue.id, 'v1');
-    expect(venue.name, 'LH1');
-    expect(venue.type, VenueType.lectureHall);
-    expect(venue.building, 'Main Block');
+
+    test('uses the label for an online venue', () {
+      final venue = Venue.fromMap({
+        'id': 'v2',
+        'type': 'online',
+        'label': 'Google Meet — CS',
+      });
+      expect(venue.type, VenueType.online);
+      expect(venue.displayName, 'Google Meet — CS');
+    });
+
+    test('falls back to "Online" when an online venue has no label', () {
+      final venue = Venue.fromMap({'id': 'v3', 'type': 'online', 'label': null});
+      expect(venue.displayName, 'Online');
+    });
   });
 }

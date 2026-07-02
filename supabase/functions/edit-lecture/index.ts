@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const { data: existing, error: loadErr } = await admin
-    .from("lectures")
+    .from("events")
     .select("*")
     .eq("id", lectureId)
     .maybeSingle();
@@ -66,13 +66,14 @@ Deno.serve(async (req: Request) => {
     start_time: startTime,
     end_time: endTime,
   };
-  if (typeof body.unit_name === "string") patch.unit_name = body.unit_name.trim();
+  if (typeof body.course_id === "string") patch.course_id = body.course_id;
+  if (typeof body.title === "string") patch.title = body.title.trim() || null;
   if (typeof body.lecturer_name === "string") {
     patch.lecturer_name = body.lecturer_name.trim();
   }
 
   const { data: updated, error: updateErr } = await admin
-    .from("lectures")
+    .from("events")
     .update(patch)
     .eq("id", lectureId)
     .select()
@@ -84,12 +85,12 @@ Deno.serve(async (req: Request) => {
     return json({ error: "update_failed" }, 500);
   }
 
-  await admin.from("lecture_audit_log").insert({
-    lecture_id: lectureId,
+  await admin.from("event_audit_log").insert({
+    event_id: lectureId,
     action: "updated",
     changed_by: callerId,
     snapshot: updated,
   });
 
-  return json({ lecture: updated }, 200);
+  return json({ event: updated }, 200);
 });

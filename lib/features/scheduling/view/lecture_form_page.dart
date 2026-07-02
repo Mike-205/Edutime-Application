@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/models/course.dart';
 import '../../../data/models/lecture.dart';
 import '../../../data/models/venue.dart';
 import '../../../data/repositories/lecture_repository.dart';
@@ -33,11 +34,12 @@ class _LectureForm extends StatefulWidget {
 
 class _LectureFormState extends State<_LectureForm> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _unitController;
   late final TextEditingController _lecturerController;
   late final Future<List<Venue>> _venuesFuture;
+  late final Future<List<Course>> _coursesFuture;
 
   String? _venueId;
+  String? _courseId;
   late DateTime _date;
   late TimeOfDay _start;
   late TimeOfDay _end;
@@ -49,11 +51,11 @@ class _LectureFormState extends State<_LectureForm> {
   void initState() {
     super.initState();
     final existing = widget.existing;
-    _unitController = TextEditingController(text: existing?.unitName ?? '');
     _lecturerController = TextEditingController(
       text: existing?.lecturerName ?? '',
     );
     _venueId = existing?.venueId;
+    _courseId = existing?.courseId;
     final start = existing?.startTime.toLocal() ?? DateTime.now();
     final end =
         existing?.endTime.toLocal() ??
@@ -62,11 +64,11 @@ class _LectureFormState extends State<_LectureForm> {
     _start = TimeOfDay.fromDateTime(start);
     _end = TimeOfDay.fromDateTime(end);
     _venuesFuture = context.read<LectureRepository>().loadVenues();
+    _coursesFuture = context.read<LectureRepository>().loadCoursesForMyCohort();
   }
 
   @override
   void dispose() {
-    _unitController.dispose();
     _lecturerController.dispose();
     super.dispose();
   }
@@ -76,6 +78,10 @@ class _LectureFormState extends State<_LectureForm> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+    if (_courseId == null) {
+      _snack('Choose a unit.');
+      return;
+    }
     if (_venueId == null) {
       _snack('Choose a venue.');
       return;
@@ -92,7 +98,7 @@ class _LectureFormState extends State<_LectureForm> {
       bloc.add(
         LectureEditSubmitted(
           lectureId: widget.existing!.id,
-          unitName: _unitController.text.trim(),
+          courseId: _courseId!,
           lecturerName: _lecturerController.text.trim(),
           venueId: _venueId!,
           start: start,
@@ -102,7 +108,7 @@ class _LectureFormState extends State<_LectureForm> {
     } else {
       bloc.add(
         LectureCreateSubmitted(
-          unitName: _unitController.text.trim(),
+          courseId: _courseId!,
           lecturerName: _lecturerController.text.trim(),
           venueId: _venueId!,
           start: start,
@@ -139,14 +145,10 @@ class _LectureFormState extends State<_LectureForm> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                TextFormField(
-                  controller: _unitController,
-                  decoration: const InputDecoration(
-                    labelText: 'Unit / course',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                _CoursePicker(
+                  future: _coursesFuture,
+                  selectedId: _courseId,
+                  onChanged: (id) => setState(() => _courseId = id),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -223,6 +225,53 @@ class _LectureFormState extends State<_LectureForm> {
   }
 }
 
+class _CoursePicker extends StatelessWidget {
+  const _CoursePicker({
+    required this.future,
+    required this.selectedId,
+    required this.onChanged,
+  });
+
+  final Future<List<Course>> future;
+  final String? selectedId;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Course>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const LinearProgressIndicator();
+        final courses = snapshot.data!;
+        if (courses.isEmpty) {
+          return const Text(
+            'No units available yet. A faculty rep must add courses for your '
+            'program before you can schedule.',
+          );
+        }
+        return DropdownButtonFormField<String>(
+          initialValue: selectedId,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Unit',
+            border: OutlineInputBorder(),
+          ),
+          items: courses
+              .map(
+                (c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+          validator: (v) => v == null ? 'Choose a unit' : null,
+        );
+      },
+    );
+  }
+}
+
 class _VenuePicker extends StatelessWidget {
   const _VenuePicker({
     required this.future,
@@ -250,7 +299,9 @@ class _VenuePicker extends StatelessWidget {
             border: OutlineInputBorder(),
           ),
           items: venues
-              .map((v) => DropdownMenuItem(value: v.id, child: Text(v.name)))
+              .map(
+                (v) => DropdownMenuItem(value: v.id, child: Text(v.displayName)),
+              )
               .toList(),
           onChanged: onChanged,
           validator: (v) => v == null ? 'Choose a venue' : null,

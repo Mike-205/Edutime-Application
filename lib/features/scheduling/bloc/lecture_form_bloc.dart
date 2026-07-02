@@ -15,7 +15,7 @@ sealed class LectureFormEvent extends Equatable {
 
 class LectureCreateSubmitted extends LectureFormEvent {
   const LectureCreateSubmitted({
-    required this.unitName,
+    required this.courseId,
     required this.lecturerName,
     required this.venueId,
     required this.start,
@@ -23,7 +23,7 @@ class LectureCreateSubmitted extends LectureFormEvent {
     required this.weeks,
   });
 
-  final String unitName;
+  final String courseId;
   final String lecturerName;
   final String venueId;
   final DateTime start;
@@ -32,7 +32,7 @@ class LectureCreateSubmitted extends LectureFormEvent {
 
   @override
   List<Object?> get props => [
-    unitName,
+    courseId,
     lecturerName,
     venueId,
     start,
@@ -44,7 +44,7 @@ class LectureCreateSubmitted extends LectureFormEvent {
 class LectureEditSubmitted extends LectureFormEvent {
   const LectureEditSubmitted({
     required this.lectureId,
-    required this.unitName,
+    required this.courseId,
     required this.lecturerName,
     required this.venueId,
     required this.start,
@@ -52,7 +52,7 @@ class LectureEditSubmitted extends LectureFormEvent {
   });
 
   final String lectureId;
-  final String unitName;
+  final String courseId;
   final String lecturerName;
   final String venueId;
   final DateTime start;
@@ -61,7 +61,7 @@ class LectureEditSubmitted extends LectureFormEvent {
   @override
   List<Object?> get props => [
     lectureId,
-    unitName,
+    courseId,
     lecturerName,
     venueId,
     start,
@@ -112,7 +112,7 @@ class LectureFormBloc extends Bloc<LectureFormEvent, LectureFormState> {
     );
     try {
       await _repository.schedule(
-        unitName: event.unitName,
+        courseId: event.courseId,
         lecturerName: event.lecturerName,
         venueId: event.venueId,
         start: event.start,
@@ -135,7 +135,7 @@ class LectureFormBloc extends Bloc<LectureFormEvent, LectureFormState> {
     try {
       await _repository.editLecture(
         lectureId: event.lectureId,
-        unitName: event.unitName,
+        courseId: event.courseId,
         lecturerName: event.lecturerName,
         venueId: event.venueId,
         start: event.start,

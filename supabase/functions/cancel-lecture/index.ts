@@ -29,7 +29,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const { data: existing, error: loadErr } = await admin
-    .from("lectures")
+    .from("events")
     .select("id, cohort_id, recurrence_group_id")
     .eq("id", lectureId)
     .maybeSingle();
@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
 
   // Select the rows to cancel: the one occurrence, or the whole series.
   let target = admin
-    .from("lectures")
+    .from("events")
     .update({ status: "canceled" })
     .eq("cohort_id", caller.cohortId)
     .neq("status", "canceled");
@@ -53,9 +53,9 @@ Deno.serve(async (req: Request) => {
   const { data: canceled, error: cancelErr } = await target.select();
   if (cancelErr) return json({ error: "cancel_failed" }, 500);
 
-  await admin.from("lecture_audit_log").insert(
+  await admin.from("event_audit_log").insert(
     (canceled ?? []).map((row) => ({
-      lecture_id: row.id,
+      event_id: row.id,
       action: "canceled",
       changed_by: callerId,
       snapshot: row,

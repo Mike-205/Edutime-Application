@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/course.dart';
 import '../models/lecture.dart';
 import '../models/venue.dart';
 
@@ -13,7 +14,7 @@ class LectureFailure implements Exception {
   String toString() => message;
 }
 
-/// Reads/writes lectures via Supabase.
+/// Reads/writes events (lectures) via Supabase.
 ///
 /// Reads go through the client under RLS (a user only sees their own cohort).
 /// Writes go through the schedule/edit/cancel Edge Functions, which pre-check
@@ -25,43 +26,86 @@ class LectureRepository {
   final SupabaseClient _client;
 
   /// Upcoming lectures for the signed-in user's cohort, ordered by start time.
+  /// Embeds the course name for display.
   Future<List<Lecture>> upcomingForMyCohort() async {
     final rows = await _client
-        .from('lectures')
-        .select()
+        .from('events')
+        .select('*, course:courses(name, abbreviation)')
         .gte('end_time', DateTime.now().toUtc().toIso8601String())
         .neq('status', 'canceled')
         .order('start_time');
     return rows.map(Lecture.fromMap).toList();
   }
 
-  /// Realtime stream of the cohort's lectures for live calendar updates.
+  /// Realtime stream of the cohort's events for live calendar updates. Streams
+  /// can't embed joins, so [Lecture.courseName] is null here and the display
+  /// falls back to the title/course-less label. The calendar milestone
+  /// (feature/04) layers name resolution + a per-cohort Broadcast channel on top.
   Stream<List<Lecture>> watchMyCohort() {
     return _client
-        .from('lectures')
+        .from('events')
         .stream(primaryKey: ['id'])
         .order('start_time')
         .map((rows) => rows.map(Lecture.fromMap).toList());
   }
 
-  /// Bookable venues (reference data) for the lecture form's picker.
+  /// Bookable venues (reference data) for the form's picker, with the room +
+  /// building joined so a physical venue can show its composed `abbrev-number`
+  /// name. Sorted client-side because that name is composed, not a stored column.
   Future<List<Venue>> loadVenues() async {
-    final rows = await _client.from('venues').select().order('name');
-    return rows.map(Venue.fromMap).toList();
+    final rows = await _client
+        .from('venues')
+        .select(
+          'id, type, label, room:rooms(number, building:buildings(abbreviation, name))',
+        );
+    return rows.map(Venue.fromMap).toList()
+      ..sort(
+        (a, b) =>
+            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+      );
+  }
+
+  /// Courses for the signed-in user's cohort program — the schedulable units
+  /// for the form's picker. Resolves cohort -> program -> courses under RLS.
+  Future<List<Course>> loadCoursesForMyCohort() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return const [];
+    final me = await _client
+        .from('users')
+        .select('cohort_id')
+        .eq('id', userId)
+        .maybeSingle();
+    final cohortId = me?['cohort_id'] as String?;
+    if (cohortId == null) return const [];
+    final cohort = await _client
+        .from('cohorts')
+        .select('program_id')
+        .eq('id', cohortId)
+        .maybeSingle();
+    final programId = cohort?['program_id'] as String?;
+    if (programId == null) return const [];
+    final rows = await _client
+        .from('courses')
+        .select('id, name, abbreviation, semester_taught')
+        .eq('program_id', programId)
+        .order('name');
+    return rows.map(Course.fromMap).toList();
   }
 
   /// Schedules a one-time ([weeks] == 1) or weekly recurring lecture. Throws
   /// [LectureFailure] with the readable conflict message on a clash.
   Future<void> schedule({
-    required String unitName,
+    required String courseId,
     required String lecturerName,
     required String venueId,
     required DateTime start,
     required DateTime end,
     int weeks = 1,
+    String? title,
   }) {
     return _invoke('schedule-lecture', {
-      'unit_name': unitName,
+      'course_id': courseId,
+      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
       'lecturer_name': lecturerName,
       'venue_id': venueId,
       'start_time': start.toUtc().toIso8601String(),
@@ -73,7 +117,7 @@ class LectureRepository {
   /// Edits a single occurrence. Only the provided fields change.
   Future<void> editLecture({
     required String lectureId,
-    String? unitName,
+    String? courseId,
     String? lecturerName,
     String? venueId,
     DateTime? start,
@@ -81,7 +125,7 @@ class LectureRepository {
   }) {
     return _invoke('edit-lecture', {
       'lecture_id': lectureId,
-      'unit_name': ?unitName,
+      'course_id': ?courseId,
       'lecturer_name': ?lecturerName,
       'venue_id': ?venueId,
       'start_time': ?start?.toUtc().toIso8601String(),

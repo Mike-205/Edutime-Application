@@ -79,3 +79,48 @@ The **three things to watch most carefully during the build**:
 3. **Verify the RLS read matrix explicitly** (automated tests), because it is
    the technical guarantee behind the DPA commitment — and column-level email
    protection needs a mechanism Postgres RLS doesn't give you for free.
+
+---
+
+## Round 2 (2026-07-02) — Schema Redesign Pressure Test
+
+Triggered by an in-place rewrite of `0001_init.sql` after milestones 1–3 were
+merged. The redesign normalizes the model and renames the core table.
+
+### What changed in the model
+
+| Before | After |
+|---|---|
+| `faculties → programs → cohorts` | `faculties → departments → programs → courses`, `cohorts` |
+| flat `venues` (name/capacity/type/building) | `buildings → rooms → venues` (venue wraps a room *or* an online link) |
+| `lectures` (free-text `unit_name`) | `events` (`course_id` FK, optional `title`) |
+| `lecture_audit_log` | `event_audit_log` |
+| users: name/email/role/cohort | + `reg_number`, `department_id`, `faculty_id` |
+
+### Resolved decisions
+
+| Question | Decision | Rationale |
+|---|---|---|
+| The rewrite edited `0001` in place, breaking the whole chain (0002/0003/0007 + all app code still said `lectures`). How to reconcile? | **Rewrite `0001` + cascade** the rename through migrations, Edge Functions, Flutter, tests, seed. | Pre-MVP, no production data, so a clean schema is cheaper than carrying two shapes via forward migrations. |
+| Keep the `courses` unit registry that the original pressure test put in Phase 2? | **Keep AND wire it up** — `events.course_id` FKs to `courses`. Lecturer stays free text (accounts still Phase 2). | Owner's call; buys data integrity + reporting. Reverses the earlier "unit registry = Phase 2" scope line. |
+| Online venues share a `venue_id` → false conflicts under the EXCLUDE? | **No.** Physical venue = one row per room (unique index); online venue = one row **per event**, so it never shares `venue_id`. EXCLUDE stays keyed on `venue_id` with no type-aware clause. | Keeps the conflict invariant simple and correct without cross-table predicates. |
+| Persist `status = 'ongoing'`? | **No — derive at read time** from `now()` vs start/end. Scheduler writes only scheduled/canceled/rescheduled. | A stored time-dependent status needs a cron and is always stale. |
+| `reg_number NOT NULL`? | **Nullable.** Students only; faculty_reps/superadmin have none. | Avoids blocking rep signup; limits the PII expansion. |
+| `users.department_id/faculty_id` vs the cohort chain? | **Denormalized, for cohort-less faculty_reps only.** For students, derive via `cohort → program → department → faculty`; may be null. | Prevents drift; documents the source of truth. |
+
+### New / accepted risks to watch
+
+1. **Seeding surface grew from 1 table to 5** (faculties, departments, programs,
+   courses, buildings, rooms + venues). A rep can now schedule *nothing* until
+   the owner seeds the hierarchy — this is friction against the "instant,
+   rep-driven adoption" bet. **Owner owns seeding** (real Chuka data in
+   `seed.sql`); ship a pilot-ready seed before onboarding any cohort.
+2. **Scope drift toward a full timetable system.** 9 → 13 tables under a
+   solo-dev / zero-budget / Sept-2026 constraint. Each entity is CRUD + admin +
+   UI. Guard against building admin surfaces the MVP doesn't need — seed by hand,
+   don't build editors yet.
+3. **`reg_number` is PII beyond the DPA-minimal set.** Surface it in the privacy
+   notice; collect for students only.
+4. **Milestones 1–3 are "done" but now depend on the app-layer cascade** (Edge
+   Functions + Flutter + tests renamed to `events`/`course_id`). Not truly
+   green until that lands and `flutter analyze` + `supabase db reset` pass.

@@ -6,7 +6,7 @@
 //   3. The EXCLUDE constraints are the ground truth: a race that slips past the
 //      pre-check is caught as exclusion_violation and surfaced as the same
 //      readable conflict.
-//   4. Append a lecture_audit_log row per created occurrence.
+//   4. Append an event_audit_log row per created occurrence.
 // The database is the authority — never this function.
 
 import { corsHeaders, json } from "../_shared/cors.ts";
@@ -27,14 +27,15 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_body" }, 400);
   }
 
-  const unitName = (body.unit_name as string | undefined)?.trim();
+  const courseId = body.course_id as string | undefined;
+  const title = (body.title as string | undefined)?.trim() || null;
   const lecturerName = (body.lecturer_name as string | undefined)?.trim();
   const venueId = body.venue_id as string | undefined;
   const startTime = body.start_time as string | undefined;
   const endTime = body.end_time as string | undefined;
   const weeks = Number(body.weeks ?? 1);
 
-  if (!unitName || !lecturerName || !venueId || !startTime || !endTime) {
+  if (!courseId || !lecturerName || !venueId || !startTime || !endTime) {
     return json({ error: "missing_fields" }, 400);
   }
   const startMs = Date.parse(startTime);
@@ -90,18 +91,20 @@ Deno.serve(async (req: Request) => {
 
   const rows = slots.map((slot) => ({
     cohort_id: cohortId,
-    unit_name: unitName,
+    course_id: courseId,
+    title,
     lecturer_name: lecturerName,
     venue_id: venueId,
     start_time: slot.start,
     end_time: slot.end,
+    recurrence: recurring ? "weekly" : "none",
     recurrence_group_id: groupId,
     recurrence_rule: recurring ? `WEEKLY;COUNT=${weeks}` : null,
     created_by: callerId,
   }));
 
   const { data: inserted, error: insertErr } = await admin
-    .from("lectures")
+    .from("events")
     .insert(rows)
     .select();
   if (insertErr) {
@@ -113,14 +116,14 @@ Deno.serve(async (req: Request) => {
   }
 
   // Audit each created occurrence.
-  await admin.from("lecture_audit_log").insert(
+  await admin.from("event_audit_log").insert(
     (inserted ?? []).map((row) => ({
-      lecture_id: row.id,
+      event_id: row.id,
       action: "created",
       changed_by: callerId,
       snapshot: row,
     })),
   );
 
-  return json({ created: inserted?.length ?? 0, lectures: inserted }, 201);
+  return json({ created: inserted?.length ?? 0, events: inserted }, 201);
 });

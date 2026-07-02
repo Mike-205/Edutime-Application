@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// Mirrors the `lecture_status` enum in the database.
+/// Mirrors the `event_status` enum in the database.
 enum LectureStatus { scheduled, canceled, rescheduled }
 
 LectureStatus lectureStatusFromDb(String value) => switch (value) {
@@ -10,39 +10,56 @@ LectureStatus lectureStatusFromDb(String value) => switch (value) {
   _ => throw ArgumentError('Unknown status: $value'),
 };
 
-/// A scheduled academic event. Recurring series are stored as one row per
-/// occurrence sharing [recurrenceGroupId]; [recurrenceRule] is display metadata
-/// only, not the source of truth.
+/// A scheduled academic event (the `events` table). The unit is FK'd via
+/// [courseId]; [courseName] is the joined display name (null when read from a
+/// realtime stream, which can't embed joins). Recurring series are stored as one
+/// row per occurrence sharing [recurrenceGroupId]; [recurrenceRule] is display
+/// metadata only, not the source of truth.
 class Lecture extends Equatable {
   const Lecture({
     required this.id,
     required this.cohortId,
-    required this.unitName,
+    required this.courseId,
     required this.lecturerName,
     required this.venueId,
     required this.startTime,
     required this.endTime,
     required this.status,
+    this.title,
+    this.courseName,
     this.recurrenceGroupId,
     this.recurrenceRule,
   });
 
-  factory Lecture.fromMap(Map<String, dynamic> map) => Lecture(
-    id: map['id'] as String,
-    cohortId: map['cohort_id'] as String,
-    unitName: map['unit_name'] as String,
-    lecturerName: map['lecturer_name'] as String,
-    venueId: map['venue_id'] as String,
-    startTime: DateTime.parse(map['start_time'] as String),
-    endTime: DateTime.parse(map['end_time'] as String),
-    status: lectureStatusFromDb(map['status'] as String),
-    recurrenceGroupId: map['recurrence_group_id'] as String?,
-    recurrenceRule: map['recurrence_rule'] as String?,
-  );
+  factory Lecture.fromMap(Map<String, dynamic> map) {
+    // `course:courses(name, abbreviation)` embeds as an object, or a
+    // single-element list depending on PostgREST; absent on realtime streams.
+    final course = switch (map['course']) {
+      final List l => l.isEmpty ? null : l.first as Map<String, dynamic>,
+      final Map m => m.cast<String, dynamic>(),
+      _ => null,
+    };
+    return Lecture(
+      id: map['id'] as String,
+      cohortId: map['cohort_id'] as String,
+      courseId: map['course_id'] as String,
+      title: map['title'] as String?,
+      courseName: course?['name'] as String?,
+      lecturerName: map['lecturer_name'] as String,
+      venueId: map['venue_id'] as String,
+      startTime: DateTime.parse(map['start_time'] as String),
+      endTime: DateTime.parse(map['end_time'] as String),
+      status: lectureStatusFromDb(map['status'] as String),
+      recurrenceGroupId: map['recurrence_group_id'] as String?,
+      recurrenceRule: map['recurrence_rule'] as String?,
+    );
+  }
 
   final String id;
   final String cohortId;
-  final String unitName;
+  final String courseId;
+  final String? title;
+  final String? courseName;
   final String lecturerName;
   final String venueId;
   final DateTime startTime;
@@ -51,11 +68,17 @@ class Lecture extends Equatable {
   final String? recurrenceGroupId;
   final String? recurrenceRule;
 
+  /// Heading to show for the lecture: a custom title if set, else the course
+  /// name, else a neutral fallback (e.g. when read from a stream without a join).
+  String get displayName => title ?? courseName ?? 'Lecture';
+
   @override
   List<Object?> get props => [
     id,
     cohortId,
-    unitName,
+    courseId,
+    title,
+    courseName,
     lecturerName,
     venueId,
     startTime,

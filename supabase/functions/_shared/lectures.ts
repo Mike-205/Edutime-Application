@@ -16,11 +16,23 @@ function hhmm(iso: string): string {
   });
 }
 
+/// A readable label for a clashing event: its custom title if set, else the
+/// course abbreviation, else a generic fallback. The embedded `course` may be
+/// returned by PostgREST as an object or a single-element array.
+function eventLabel(clash: Record<string, unknown>): string {
+  if (typeof clash.title === "string" && clash.title.trim()) return clash.title;
+  const c = clash.course;
+  const course = (Array.isArray(c) ? c[0] : c) as
+    | { abbreviation?: string; name?: string }
+    | null;
+  return course?.abbreviation ?? course?.name ?? "a lecture";
+}
+
 /// Returns a readable conflict message if [slot] would clash with an existing
-/// non-canceled lecture — by venue (any cohort) or by the caller's cohort (any
-/// venue) — or null if the slot is free. [excludeId] skips a lecture being
+/// non-canceled event — by venue (any cohort) or by the caller's cohort (any
+/// venue) — or null if the slot is free. [excludeId] skips an event being
 /// edited. This is the UX pre-check; the DB EXCLUDE constraints remain the
-/// authority (see findConstraintConflictMessage).
+/// authority (see isExclusionViolation).
 export async function findConflict(
   admin: SupabaseClient,
   opts: {
@@ -31,8 +43,8 @@ export async function findConflict(
   },
 ): Promise<string | null> {
   let query = admin
-    .from("lectures")
-    .select("id, unit_name, start_time, end_time, venue_id")
+    .from("events")
+    .select("id, title, start_time, end_time, venue_id, course:courses(abbreviation, name)")
     .neq("status", "canceled")
     .lt("start_time", opts.slot.end)
     .gt("end_time", opts.slot.start)
@@ -44,10 +56,11 @@ export async function findConflict(
   if (!data || data.length === 0) return null;
 
   const clash = data[0];
+  const label = eventLabel(clash);
   const window = `${hhmm(clash.start_time)}–${hhmm(clash.end_time)}`;
   return clash.venue_id === opts.venueId
-    ? `That venue is taken by ${clash.unit_name} (${window}).`
-    : `Your cohort already has ${clash.unit_name} (${window}) in that slot.`;
+    ? `That venue is taken by ${label} (${window}).`
+    : `Your cohort already has ${label} (${window}) in that slot.`;
 }
 
 /// Postgres raises exclusion_violation (23P01) when an EXCLUDE constraint

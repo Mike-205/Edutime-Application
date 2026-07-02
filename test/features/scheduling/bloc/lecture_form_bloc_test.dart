@@ -16,7 +16,7 @@ void main() {
   setUp(() => repo = MockLectureRepository());
 
   LectureCreateSubmitted createEvent() => LectureCreateSubmitted(
-    unitName: 'Algorithms',
+    courseId: 'course-1',
     lecturerName: 'Dr A',
     venueId: 'v1',
     start: start,
@@ -28,7 +28,7 @@ void main() {
     'create: submitting -> success',
     setUp: () => when(
       () => repo.schedule(
-        unitName: any(named: 'unitName'),
+        courseId: any(named: 'courseId'),
         lecturerName: any(named: 'lecturerName'),
         venueId: any(named: 'venueId'),
         start: any(named: 'start'),
@@ -48,7 +48,7 @@ void main() {
     'create: surfaces the readable conflict message on failure',
     setUp: () => when(
       () => repo.schedule(
-        unitName: any(named: 'unitName'),
+        courseId: any(named: 'courseId'),
         lecturerName: any(named: 'lecturerName'),
         venueId: any(named: 'venueId'),
         start: any(named: 'start'),
@@ -72,7 +72,7 @@ void main() {
     setUp: () => when(
       () => repo.editLecture(
         lectureId: any(named: 'lectureId'),
-        unitName: any(named: 'unitName'),
+        courseId: any(named: 'courseId'),
         lecturerName: any(named: 'lecturerName'),
         venueId: any(named: 'venueId'),
         start: any(named: 'start'),
@@ -83,7 +83,7 @@ void main() {
     act: (bloc) => bloc.add(
       LectureEditSubmitted(
         lectureId: 'l1',
-        unitName: 'Algorithms',
+        courseId: 'course-1',
         lecturerName: 'Dr A',
         venueId: 'v1',
         start: start,
@@ -97,7 +97,7 @@ void main() {
     verify: (_) => verify(
       () => repo.editLecture(
         lectureId: 'l1',
-        unitName: 'Algorithms',
+        courseId: 'course-1',
         lecturerName: 'Dr A',
         venueId: 'v1',
         start: start,

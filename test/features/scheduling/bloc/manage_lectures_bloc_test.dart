@@ -10,7 +10,8 @@ class MockLectureRepository extends Mock implements LectureRepository {}
 Lecture _lecture(String id) => Lecture(
   id: id,
   cohortId: 'c1',
-  unitName: 'Unit $id',
+  courseId: 'course-$id',
+  courseName: 'Unit $id',
   lecturerName: 'Dr $id',
   venueId: 'v1',
   startTime: DateTime(2026, 2, 2, 10),

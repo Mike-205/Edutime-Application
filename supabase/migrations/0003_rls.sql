@@ -31,12 +31,16 @@ $$;
 
 -- Enable RLS everywhere (default-deny once enabled) --------------------------
 alter table faculties        enable row level security;
+alter table departments      enable row level security;
 alter table programs         enable row level security;
+alter table courses          enable row level security;
 alter table cohorts          enable row level security;
-alter table users            enable row level security;
+alter table buildings        enable row level security;
+alter table rooms            enable row level security;
 alter table venues           enable row level security;
-alter table lectures         enable row level security;
-alter table lecture_audit_log enable row level security;
+alter table users            enable row level security;
+alter table events           enable row level security;
+alter table event_audit_log  enable row level security;
 alter table notifications    enable row level security;
 alter table daily_snapshots  enable row level security;
 -- daily_snapshots: no policies => no client access. Service role only.
@@ -73,42 +77,45 @@ as $$
     and get_my_role() = 'class_rep';
 $$;
 
--- VENUES — readable by all authenticated users; seeded via service role only.
-create policy venues_select_all
-  on venues for select
-  to authenticated
-  using (true);
+-- REFERENCE DATA — the academic + venue hierarchy is readable by all
+-- authenticated users (the schedule/venue pickers read it); every table here is
+-- seeded via the service role only, never written by clients at MVP.
+create policy venues_select_all      on venues      for select to authenticated using (true);
+create policy buildings_select_all   on buildings   for select to authenticated using (true);
+create policy rooms_select_all       on rooms       for select to authenticated using (true);
 
--- FACULTIES / PROGRAMS — readable by all authenticated users.
--- Program writes are restricted to faculty reps (completed in faculty milestone).
-create policy faculties_select_all on faculties for select to authenticated using (true);
-create policy programs_select_all  on programs  for select to authenticated using (true);
+-- FACULTIES / DEPARTMENTS / PROGRAMS / COURSES — readable by all authenticated.
+-- Writes are restricted to faculty reps / service role (faculty milestone).
+create policy faculties_select_all   on faculties   for select to authenticated using (true);
+create policy departments_select_all on departments for select to authenticated using (true);
+create policy programs_select_all    on programs    for select to authenticated using (true);
+create policy courses_select_all     on courses     for select to authenticated using (true);
 
 -- COHORTS — readable by all authenticated (needed to resolve a join code and
 -- to display program/cohort info). Cohort creation is a class-rep action,
 -- completed in the cohort milestone.
 create policy cohorts_select_all on cohorts for select to authenticated using (true);
 
--- LECTURES — a user reads lectures for their own cohort. Only a class rep of
--- that cohort may write. Students can never write a lecture record.
-create policy lectures_select_own_cohort
-  on lectures for select
+-- EVENTS — a user reads events for their own cohort. Only a class rep of that
+-- cohort may write. Students can never write an event record.
+create policy events_select_own_cohort
+  on events for select
   using (cohort_id = my_cohort_id());
 
-create policy lectures_write_class_rep
-  on lectures for all
+create policy events_write_class_rep
+  on events for all
   using (get_my_role() = 'class_rep' and cohort_id = my_cohort_id())
   with check (get_my_role() = 'class_rep' and cohort_id = my_cohort_id());
 
 -- AUDIT LOG — readable by the class rep of the cohort; inserts via service role.
 create policy audit_select_class_rep
-  on lecture_audit_log for select
+  on event_audit_log for select
   using (
     get_my_role() = 'class_rep'
     and exists (
-      select 1 from lectures l
-      where l.id = lecture_audit_log.lecture_id
-        and l.cohort_id = my_cohort_id()
+      select 1 from events e
+      where e.id = event_audit_log.event_id
+        and e.cohort_id = my_cohort_id()
     )
   );
 
