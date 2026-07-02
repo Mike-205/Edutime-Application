@@ -88,6 +88,7 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
   final ScheduleCache _cache;
   final String cohortId;
   StreamSubscription<void>? _sub;
+  Timer? _debounce;
 
   Future<void> _onStarted(
     CalendarStarted event,
@@ -107,10 +108,22 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
 
     await _refetch(emit);
 
-    // Subscribe to the realtime nudge; each change triggers a windowed refetch.
+    // Subscribe to the realtime nudge; each change triggers a windowed refetch,
+    // debounced so a burst collapses to one fetch (see _scheduleRefetch).
     _sub ??= _repository.watchMyCohort().listen(
-      (_) => add(const _CalendarChanged()),
+      (_) => _scheduleRefetch(),
       onError: (_) {}, // transport hiccups surface as a failed refetch instead
+    );
+  }
+
+  /// Coalesce bursts into a single refetch. A 14-occurrence recurring series
+  /// inserts 14 rows and fires many stream ticks; without this that would be 14
+  /// full refetches (NFR: don't hammer the DB / burn egress).
+  void _scheduleRefetch() {
+    _debounce?.cancel();
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => add(const _CalendarChanged()),
     );
   }
 
@@ -134,6 +147,7 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
 
   @override
   Future<void> close() {
+    _debounce?.cancel();
     _sub?.cancel();
     return super.close();
   }

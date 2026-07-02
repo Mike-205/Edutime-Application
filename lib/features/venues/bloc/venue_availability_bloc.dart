@@ -71,14 +71,19 @@ class VenueAvailabilityBloc
        super(VenueAvailabilityState(at: initialAt)) {
     on<AvailabilityRequested>(_onRequested);
     on<_AvailabilityNudged>((_, emit) => _load(state.at, emit));
-    _sub = _repository.watchMyCohort().listen(
-      (_) => add(const _AvailabilityNudged()),
-      onError: (_) {},
-    );
+    // Debounce the nudge so a burst (e.g. a recurring series) is one re-query.
+    _sub = _repository.watchMyCohort().listen((_) {
+      _debounce?.cancel();
+      _debounce = Timer(
+        const Duration(milliseconds: 400),
+        () => add(const _AvailabilityNudged()),
+      );
+    }, onError: (_) {});
   }
 
   final LectureRepository _repository;
   StreamSubscription<void>? _sub;
+  Timer? _debounce;
 
   Future<void> _onRequested(
     AvailabilityRequested event,
@@ -105,6 +110,7 @@ class VenueAvailabilityBloc
 
   @override
   Future<void> close() {
+    _debounce?.cancel();
     _sub?.cancel();
     return super.close();
   }
