@@ -76,10 +76,18 @@ supabase/seed.sql      venue registry seed (replace with real Chuka data)
 - **Never expose another user's `email`.** A student reads only their own `users`
   row; cohort-mate lists come through `get_cohort_members()` (name + role only).
   This is the DPA guarantee — verify it before any other policy.
-- **Lecture writes go through the `schedule-lecture` Edge Function**, which also
+- **Lectures are the `events` table** (renamed from `lectures`, 2026-07-02).
+  Academic hierarchy is now `faculties → departments → programs → courses` and
+  venues are `buildings → rooms → venues` (physical venue = 1 row per room;
+  online venue = 1 row per event). This reference data is **seeded via service
+  role** (owner-provided) — a rep cannot schedule a unit until its `courses` row
+  exists for the cohort's program.
+- **Event writes go through the `schedule-lecture` Edge Function**, which also
   writes the audit log. Reads go directly through the client under RLS.
-- **Recurring lectures = one row per occurrence** sharing `recurrence_group_id`.
-  `recurrence_rule` is display metadata only.
+- **Recurring events = one row per occurrence** sharing `recurrence_group_id`.
+  `recurrence_rule` is display metadata only. Stored `event_status` is only
+  `scheduled | canceled | rescheduled`; "ongoing"/"past"/"upcoming" are derived
+  at read time from `start_time`/`end_time` — never a stored status.
 
 ## Coding Conventions
 
@@ -97,7 +105,11 @@ All secrets live in `.env` (never committed). See `.env.example`:
 - `SUPABASE_URL` / `SUPABASE_ANON_KEY` — client-safe; passed via `--dart-define`.
 - `SUPABASE_SERVICE_ROLE_KEY` — server-side only (Edge Functions/CI). Never ship
   to the client.
-- `FCM_PROJECT_ID` / `FCM_SERVER_KEY` — push notifications.
+- `FCM_PROJECT_ID` / `FCM_SERVICE_ACCOUNT` — push notifications. `FCM_SERVICE_ACCOUNT`
+  is the full Firebase **service-account JSON** (private key). The legacy FCM
+  server-key API was shut down by Google (mid-2024); `dispatch-fcm` must use
+  **FCM HTTP v1**, minting a short-lived OAuth2 token by signing a JWT with this
+  key. There is no `FCM_SERVER_KEY`.
 - `RESEND_API_KEY` — transactional email.
 - `FCM_WEBHOOK_SECRET` — secures the DB webhook → `dispatch-fcm`.
 
@@ -137,8 +149,9 @@ All feature branches come off `dev`; `dev` merges into `main` after testing.
 - Android-first; must degrade gracefully offline (cached schedule readable;
   writes require connectivity with clear feedback).
 - Kenya Data Protection Act 2019: privacy notice at registration, surfaced
-  deletion path, data minimization (name/email/cohort/role/prefs only), and the
-  "independent student project, not official Chuka" disclaimer.
+  deletion path, data minimization (name/email/cohort/role/prefs, plus
+  `reg_number` for students only — nullable, called out in the privacy notice),
+  and the "independent student project, not official Chuka" disclaimer.
 - Superadmin is infra-only (never a UI role); Faculty Reps are bootstrapped
   manually out-of-band.
 
@@ -149,5 +162,7 @@ All feature branches come off `dev`; `dev` merges into `main` after testing.
 - Never use `auth.jwt() -> 'role'` for access decisions — use `get_my_role()`.
 - Never commit `.env`, `google-services.json`, or `firebase_options.dart`.
 - Never build phase-2 scope into the MVP (branch/merge, combined lectures,
-  faculty approval queues, unit registry, lecturer accounts, web app).
+  faculty approval queues, lecturer accounts, web app). NOTE: a **unit registry
+  (`courses`) is now IN scope** — `events.course_id` FKs to it (decision
+  2026-07-02). Lecturer names stay free text; lecturer *accounts* remain Phase 2.
 - Never change the schema by hand — add a numbered migration in `supabase/migrations/`.
