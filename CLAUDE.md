@@ -13,10 +13,12 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 ## Current Status
 
 - Active branch: `dev`
-- Completed: `feature/01-auth-rls` ✅, `feature/02-cohorts` ✅, `feature/03-scheduling` ✅ (all merged)
-- Next milestone: `feature/04-calendar-realtime` (run `/code-branch`)
-- Milestone goal: see MILESTONES.md → feature/04-calendar-realtime (table_calendar
-  day/week/semester views + live Realtime + offline cache)
+- Completed: `feature/01-auth-rls` ✅, `feature/02-cohorts` ✅, `feature/03-scheduling` ✅,
+  `feature/04-calendar-realtime` ✅ (all merged)
+- Next milestone: `feature/05-notifications` (run `/code-branch`)
+- Milestone goal: see MILESTONES.md → feature/05-notifications (DB webhook →
+  `dispatch-fcm` push via FCM HTTP v1 + in-app notification history + device tokens).
+  The FCM v1 transport already exists in `_shared/fcm.ts` (proven by `fcm-poc`).
 
 ## Commands
 

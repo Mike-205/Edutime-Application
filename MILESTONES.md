@@ -113,6 +113,15 @@ within seconds of a rep's change.
 calendar within seconds, venues flip available/occupied live, and the cached
 schedule renders offline.
 
+**Status: ✅ complete (merged to `dev`).** Realtime uses **Postgres Changes as a
+nudge → windowed refetch** (debounced), not Broadcast — adequate at MVP scale;
+migrating to Broadcast-from-Postgres is deferred until nearer the ~200-connection
+wall (which the MAU>500 upgrade trigger catches first). Cross-cohort venue reads
+go through the `venue_availability` SECURITY DEFINER function (`0009` also adds
+`events` to the realtime publication); cross-cohort venue *flips* are refresh/
+time-based, since RLS gives no realtime nudge for other cohorts. Offline cache is
+a shared_preferences JSON snapshot per cohort.
+
 ---
 
 ### feature/05-notifications
