@@ -44,8 +44,11 @@ class Lecture extends Equatable {
       cohortId: map['cohort_id'] as String,
       courseId: map['course_id'] as String,
       title: map['title'] as String?,
-      courseName: course?['name'] as String?,
-      venueName: venue == null ? null : Venue.composeName(venue),
+      // Prefer the embedded join; fall back to the flat name the cache stores.
+      courseName: (course?['name'] as String?) ?? map['course_name'] as String?,
+      venueName: venue != null
+          ? Venue.composeName(venue)
+          : map['venue_name'] as String?,
       lecturerName: map['lecturer_name'] as String,
       venueId: map['venue_id'] as String,
       startTime: DateTime.parse(map['start_time'] as String),
@@ -80,15 +83,16 @@ class Lecture extends Equatable {
   /// name, else a neutral fallback (e.g. when read from a stream without a join).
   String get displayName => title ?? courseName ?? 'Lecture';
 
-  /// A row shape compatible with [Lecture.fromMap], for the offline cache. Keeps
-  /// a single parse path — the composed course/venue names round-trip as embeds.
+  /// A row shape [Lecture.fromMap] can read back, for the offline cache. The
+  /// already-composed course/venue names are stored as flat keys (the fromMap
+  /// fallbacks pick them up) — no need to reconstruct join envelopes.
   Map<String, dynamic> toCacheJson() => {
     'id': id,
     'cohort_id': cohortId,
     'course_id': courseId,
     'title': title,
-    if (courseName != null) 'course': {'name': courseName},
-    if (venueName != null) 'venue': {'type': 'online', 'label': venueName},
+    'course_name': courseName,
+    'venue_name': venueName,
     'lecturer_name': lecturerName,
     'venue_id': venueId,
     'start_time': startTime.toIso8601String(),

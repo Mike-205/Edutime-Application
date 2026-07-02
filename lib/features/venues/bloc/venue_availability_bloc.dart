@@ -72,7 +72,8 @@ class VenueAvailabilityBloc
     on<AvailabilityRequested>(_onRequested);
     on<_AvailabilityNudged>((_, emit) => _load(state.at, emit));
     // Debounce the nudge so a burst (e.g. a recurring series) is one re-query.
-    _sub = _repository.watchMyCohort().listen((_) {
+    // skip(1) drops the initial snapshot — the page's AvailabilityRequested loads it.
+    _sub = _repository.watchMyCohort().skip(1).listen((_) {
       _debounce?.cancel();
       _debounce = Timer(
         const Duration(milliseconds: 400),

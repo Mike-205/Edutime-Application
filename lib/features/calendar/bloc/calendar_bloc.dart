@@ -110,7 +110,8 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
 
     // Subscribe to the realtime nudge; each change triggers a windowed refetch,
     // debounced so a burst collapses to one fetch (see _scheduleRefetch).
-    _sub ??= _repository.watchMyCohort().listen(
+    // skip(1) drops the stream's initial snapshot — we just fetched it above.
+    _sub ??= _repository.watchMyCohort().skip(1).listen(
       (_) => _scheduleRefetch(),
       onError: (_) {}, // transport hiccups surface as a failed refetch instead
     );
@@ -129,7 +130,14 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
 
   Future<void> _refetch(Emitter<CalendarState> emit) async {
     try {
-      final lectures = await _repository.loadCohortSchedule();
+      // Bound the read (NFR: time-windowed, never an unbounded refetch). The
+      // window spans well past the ~26-week recurring horizon, so nothing real
+      // is hidden; navigating outside it simply shows empty days.
+      final now = DateTime.now();
+      final lectures = await _repository.loadCohortSchedule(
+        from: now.subtract(const Duration(days: 31)),
+        to: now.add(const Duration(days: 245)),
+      );
       await _cache.save(cohortId, lectures);
       emit(
         state.copyWith(

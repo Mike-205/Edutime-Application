@@ -29,6 +29,8 @@ void main() {
   late MockScheduleCache cache;
   final fresh = [_lecture('1'), _lecture('2')];
 
+  setUpAll(() => registerFallbackValue(DateTime(2000)));
+
   setUp(() {
     repo = MockLectureRepository();
     cache = MockScheduleCache();
@@ -43,7 +45,12 @@ void main() {
     'renders cache first, then the fresh fetch, and saves the snapshot',
     setUp: () {
       when(() => cache.load('c1')).thenAnswer((_) async => [_lecture('1')]);
-      when(() => repo.loadCohortSchedule()).thenAnswer((_) async => fresh);
+      when(
+        () => repo.loadCohortSchedule(
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+        ),
+      ).thenAnswer((_) async => fresh);
     },
     build: build,
     act: (bloc) => bloc.add(const CalendarStarted()),
@@ -62,7 +69,12 @@ void main() {
     'flags offline and keeps cached data when the fetch fails',
     setUp: () {
       when(() => cache.load('c1')).thenAnswer((_) async => [_lecture('1')]);
-      when(() => repo.loadCohortSchedule()).thenThrow(Exception('no network'));
+      when(
+        () => repo.loadCohortSchedule(
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+        ),
+      ).thenThrow(Exception('no network'));
     },
     build: build,
     act: (bloc) => bloc.add(const CalendarStarted()),

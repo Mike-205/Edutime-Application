@@ -52,12 +52,19 @@ class _CalendarViewState extends State<_CalendarView> {
   DateTime _selectedDay = DateTime.now();
   CalendarFormat _format = CalendarFormat.month;
 
-  List<Lecture> _lecturesFor(DateTime day, List<Lecture> all) {
-    final matches = all
-        .where((l) => isSameDay(l.startTime.toLocal(), day))
-        .toList();
-    matches.sort((a, b) => a.startTime.compareTo(b.startTime));
-    return matches;
+  static DateTime _dayKey(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// Group lectures by local day, sorted within each day. Built once per build
+  /// so the calendar's per-cell `eventLoader` is an O(1) map lookup, not a scan.
+  Map<DateTime, List<Lecture>> _groupByDay(List<Lecture> all) {
+    final byDay = <DateTime, List<Lecture>>{};
+    for (final l in all) {
+      byDay.putIfAbsent(_dayKey(l.startTime.toLocal()), () => []).add(l);
+    }
+    for (final day in byDay.values) {
+      day.sort((a, b) => a.startTime.compareTo(b.startTime));
+    }
+    return byDay;
   }
 
   @override
@@ -114,7 +121,8 @@ class _CalendarViewState extends State<_CalendarView> {
           if (state.status == CalendarStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
-          final dayLectures = _lecturesFor(_selectedDay, state.lectures);
+          final byDay = _groupByDay(state.lectures);
+          final dayLectures = byDay[_dayKey(_selectedDay)] ?? const [];
           return Column(
             children: [
               if (state.offline) const _OfflineBanner(),
@@ -128,7 +136,7 @@ class _CalendarViewState extends State<_CalendarView> {
                   CalendarFormat.week: 'Week',
                 },
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                eventLoader: (day) => _lecturesFor(day, state.lectures),
+                eventLoader: (day) => byDay[_dayKey(day)] ?? const [],
                 onDaySelected: (selected, focused) {
                   setState(() {
                     _selectedDay = selected;
