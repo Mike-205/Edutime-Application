@@ -14,12 +14,13 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 
 - Active branch: `dev`
 - Completed: `feature/01-auth-rls` ✅, `feature/02-cohorts` ✅, `feature/03-scheduling` ✅,
-  `feature/04-calendar-realtime` ✅, `feature/05-notifications` ✅ (all merged)
-- Next milestone: `feature/06-instrumentation-polish` (run `/code-branch`) — the last
-  MVP milestone
-- Milestone goal: see MILESTONES.md → feature/06 (`daily-snapshot` + keep-alive
-  verification + **DPA account-deletion path** + offline/error polish). DPA deletion
-  is a legal hard requirement, not just polish.
+  `feature/04-calendar-realtime` ✅, `feature/05-notifications` ✅,
+  `feature/06-instrumentation-polish` ✅ (all merged)
+- **All six MVP milestones are complete — the MVP is code-complete on `dev`.**
+- Remaining before a real launch (not new milestones): provide the out-of-band
+  config (`google-services.json` / `firebase_options.dart`, `FCM_SERVICE_ACCOUNT`,
+  Resend), seed real Chuka reference data in `seed.sql`, deploy migrations +
+  Edge Functions, schedule `daily-snapshot`, and confirm FCM push on a real device.
 
 ## Commands
 

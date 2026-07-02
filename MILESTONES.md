@@ -172,6 +172,17 @@ keep-alive holds, and the DPA + UX edges are handled.
 working, the account-deletion path is reachable from the UI, and core flows handle
 offline/error states cleanly.
 
+**Status: ✅ complete (merged to `dev`) — MVP code-complete.** `record_daily_snapshot()`
+(`SECURITY DEFINER`) computes MAU/active-cohorts/DB-size; `daily-snapshot` delegates
+to it; `daily_snapshots` is anon-readable so the existing `keepalive.yml` works
+unchanged. DPA: `request-account-deletion` + a Settings screen surface the deletion
+path, and `events.created_by`/`updated_by` + `event_audit_log.changed_by` are now
+`ON DELETE SET NULL` so a full user erase succeeds while the schedule is retained
+(verified in-DB). `conflict_incidents` stays 0 (rejections aren't logged; zero is
+the goal). **Launch prerequisites (not milestones):** out-of-band config
+(`google-services.json`, `FCM_SERVICE_ACCOUNT`, Resend), real seed data, deploy +
+schedule `daily-snapshot`, confirm FCM on a device.
+
 ---
 
 ## Notes
