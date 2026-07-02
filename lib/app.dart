@@ -5,6 +5,7 @@ import 'core/config/env.dart';
 import 'core/push/push_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
+import 'data/repositories/account_repository.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/cohort_repository.dart';
 import 'data/repositories/lecture_repository.dart';
@@ -37,6 +38,9 @@ class EdutimeApp extends StatelessWidget {
         ),
         RepositoryProvider(
           create: (_) => NotificationRepository(SupabaseClientProvider.client),
+        ),
+        RepositoryProvider(
+          create: (_) => AccountRepository(SupabaseClientProvider.client),
         ),
         RepositoryProvider(
           create: (context) =>
