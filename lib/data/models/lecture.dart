@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'venue.dart';
+
 /// Mirrors the `event_status` enum in the database.
 enum LectureStatus { scheduled, canceled, rescheduled }
 
@@ -27,24 +29,26 @@ class Lecture extends Equatable {
     required this.status,
     this.title,
     this.courseName,
+    this.venueName,
     this.recurrenceGroupId,
     this.recurrenceRule,
   });
 
   factory Lecture.fromMap(Map<String, dynamic> map) {
-    // `course:courses(name, abbreviation)` embeds as an object, or a
-    // single-element list depending on PostgREST; absent on realtime streams.
-    final course = switch (map['course']) {
-      final List l => l.isEmpty ? null : l.first as Map<String, dynamic>,
-      final Map m => m.cast<String, dynamic>(),
-      _ => null,
-    };
+    // `course:courses(...)` / `venue:venues(...)` embed as an object, or a
+    // single-element list depending on PostgREST; both absent on realtime streams.
+    final course = _embed(map['course']);
+    final venue = _embed(map['venue']);
     return Lecture(
       id: map['id'] as String,
       cohortId: map['cohort_id'] as String,
       courseId: map['course_id'] as String,
       title: map['title'] as String?,
-      courseName: course?['name'] as String?,
+      // Prefer the embedded join; fall back to the flat name the cache stores.
+      courseName: (course?['name'] as String?) ?? map['course_name'] as String?,
+      venueName: venue != null
+          ? Venue.composeName(venue)
+          : map['venue_name'] as String?,
       lecturerName: map['lecturer_name'] as String,
       venueId: map['venue_id'] as String,
       startTime: DateTime.parse(map['start_time'] as String),
@@ -55,11 +59,18 @@ class Lecture extends Equatable {
     );
   }
 
+  static Map<String, dynamic>? _embed(Object? raw) => switch (raw) {
+    final List l => l.isEmpty ? null : l.first as Map<String, dynamic>,
+    final Map m => m.cast<String, dynamic>(),
+    _ => null,
+  };
+
   final String id;
   final String cohortId;
   final String courseId;
   final String? title;
   final String? courseName;
+  final String? venueName;
   final String lecturerName;
   final String venueId;
   final DateTime startTime;
@@ -72,6 +83,25 @@ class Lecture extends Equatable {
   /// name, else a neutral fallback (e.g. when read from a stream without a join).
   String get displayName => title ?? courseName ?? 'Lecture';
 
+  /// A row shape [Lecture.fromMap] can read back, for the offline cache. The
+  /// already-composed course/venue names are stored as flat keys (the fromMap
+  /// fallbacks pick them up) — no need to reconstruct join envelopes.
+  Map<String, dynamic> toCacheJson() => {
+    'id': id,
+    'cohort_id': cohortId,
+    'course_id': courseId,
+    'title': title,
+    'course_name': courseName,
+    'venue_name': venueName,
+    'lecturer_name': lecturerName,
+    'venue_id': venueId,
+    'start_time': startTime.toIso8601String(),
+    'end_time': endTime.toIso8601String(),
+    'status': status.name,
+    'recurrence_group_id': recurrenceGroupId,
+    'recurrence_rule': recurrenceRule,
+  };
+
   @override
   List<Object?> get props => [
     id,
@@ -79,6 +109,7 @@ class Lecture extends Equatable {
     courseId,
     title,
     courseName,
+    venueName,
     lecturerName,
     venueId,
     startTime,

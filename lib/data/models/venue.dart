@@ -20,16 +20,17 @@ class Venue extends Equatable {
     required this.displayName,
   });
 
-  factory Venue.fromMap(Map<String, dynamic> map) {
-    final type = venueTypeFromDb(map['type'] as String);
-    return Venue(
-      id: map['id'] as String,
-      type: type,
-      displayName: _composeName(map, type),
-    );
-  }
+  factory Venue.fromMap(Map<String, dynamic> map) => Venue(
+    id: map['id'] as String,
+    type: venueTypeFromDb(map['type'] as String),
+    displayName: composeName(map),
+  );
 
-  static String _composeName(Map<String, dynamic> map, VenueType type) {
+  /// Composes a venue's display name from a row that carries `type`, `label`,
+  /// and (for physical venues) an embedded `room` -> `building`. Shared with
+  /// event reads that embed the venue, so the naming rule lives in one place.
+  static String composeName(Map<String, dynamic> map) {
+    final type = venueTypeFromDb(map['type'] as String);
     final label = (map['label'] as String?)?.trim();
     if (type == VenueType.online) {
       return (label != null && label.isNotEmpty) ? label : 'Online';
