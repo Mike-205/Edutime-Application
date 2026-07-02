@@ -8,7 +8,7 @@ lectures to venues; students in their cohort see the schedule in real time and
 get push notifications on changes. It is bottom-up (rep-driven), not a top-down
 timetable. MVP target: end of September 2026, solo dev, zero budget. Open source
 (MIT) so other universities can self-deploy. Full context: DISCOVERY.md,
-ARCHITECTURE.md, PRESSURE-TEST.md.
+ARCHITECTURE.md, PRESSURE-TEST.md. Local run + hosted deploy: DEPLOYMENT.md.
 
 ## Current Status
 
