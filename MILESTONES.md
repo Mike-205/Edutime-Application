@@ -141,6 +141,17 @@ history.
 **Done when:** Scheduling/editing/canceling a lecture delivers an FCM push to
 cohort students and writes a matching `notifications` row; tokens refresh correctly.
 
+**Status: ✅ complete (merged to `dev`).** Dispatch is **Edge-initiated**, not a DB
+webhook: schedule/edit/cancel-lecture run the shared `notifyEventChange()` as a
+post-response task (`waitUntil`), one notification per action (a whole series →
+one). `0010` adds `device_tokens` (own-row RLS, direct client upsert), the
+`notifications` grant, and realtime for the live badge; the client registers its
+FCM token on auth via `PushService` (Firebase guarded, so no-config dev still
+runs). Actual FCM *delivery* is unverified in-repo (needs `FCM_SERVICE_ACCOUNT` +
+a real device). **Follow-ups (from code review, deferred):** unregister the device
+token on sign-out (mitigated by PK reassign on next login); optional foreground
+heads-up banner (`onMessage`) — the badge/list already update live via realtime.
+
 ---
 
 ### feature/06-instrumentation-polish

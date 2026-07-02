@@ -14,11 +14,12 @@ ARCHITECTURE.md, PRESSURE-TEST.md.
 
 - Active branch: `dev`
 - Completed: `feature/01-auth-rls` ✅, `feature/02-cohorts` ✅, `feature/03-scheduling` ✅,
-  `feature/04-calendar-realtime` ✅ (all merged)
-- Next milestone: `feature/05-notifications` (run `/code-branch`)
-- Milestone goal: see MILESTONES.md → feature/05-notifications (DB webhook →
-  `dispatch-fcm` push via FCM HTTP v1 + in-app notification history + device tokens).
-  The FCM v1 transport already exists in `_shared/fcm.ts` (proven by `fcm-poc`).
+  `feature/04-calendar-realtime` ✅, `feature/05-notifications` ✅ (all merged)
+- Next milestone: `feature/06-instrumentation-polish` (run `/code-branch`) — the last
+  MVP milestone
+- Milestone goal: see MILESTONES.md → feature/06 (`daily-snapshot` + keep-alive
+  verification + **DPA account-deletion path** + offline/error polish). DPA deletion
+  is a legal hard requirement, not just polish.
 
 ## Commands
 
