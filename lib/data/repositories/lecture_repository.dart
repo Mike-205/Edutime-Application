@@ -37,16 +37,30 @@ class LectureRepository {
     return rows.map(Lecture.fromMap).toList();
   }
 
-  /// Realtime stream of the cohort's events for live calendar updates. Streams
-  /// can't embed joins, so [Lecture.courseName] is null here and the display
-  /// falls back to the title/course-less label. The calendar milestone
-  /// (feature/04) layers name resolution + a per-cohort Broadcast channel on top.
-  Stream<List<Lecture>> watchMyCohort() {
-    return _client
+  /// The cohort's non-canceled schedule with course + venue names embedded, for
+  /// the calendar. RLS scopes rows to the caller's cohort. [from]/[to] bound the
+  /// window (NFR: time-windowed reads, never a full-semester refetch); omit for
+  /// the whole schedule.
+  Future<List<Lecture>> loadCohortSchedule({DateTime? from, DateTime? to}) async {
+    var query = _client
         .from('events')
-        .stream(primaryKey: ['id'])
-        .order('start_time')
-        .map((rows) => rows.map(Lecture.fromMap).toList());
+        .select(
+          '*, course:courses(name, abbreviation), '
+          'venue:venues(type, label, room:rooms(number, building:buildings(abbreviation)))',
+        )
+        .neq('status', 'canceled');
+    if (from != null) query = query.gte('end_time', from.toUtc().toIso8601String());
+    if (to != null) query = query.lte('start_time', to.toUtc().toIso8601String());
+    final rows = await query.order('start_time');
+    return rows.map(Lecture.fromMap).toList();
+  }
+
+  /// Realtime nudge: emits whenever the cohort's events change. Streams can't
+  /// embed joins, so consumers treat each emission as "something changed" and
+  /// refetch the enriched window via [loadCohortSchedule] — the same shape the
+  /// planned Broadcast-from-Postgres migration will take (nudge -> refetch).
+  Stream<void> watchMyCohort() {
+    return _client.from('events').stream(primaryKey: ['id']).map((_) {});
   }
 
   /// Bookable venues (reference data) for the form's picker, with the room +
