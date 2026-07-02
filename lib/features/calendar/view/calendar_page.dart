@@ -13,6 +13,7 @@ import '../../cohort/view/cohort_page.dart';
 import '../../notifications/bloc/notification_bloc.dart';
 import '../../notifications/view/notifications_page.dart';
 import '../../scheduling/view/manage_lectures_page.dart';
+import '../../settings/view/settings_page.dart';
 import '../../venues/view/venue_availability_page.dart';
 import '../bloc/calendar_bloc.dart';
 
@@ -134,6 +135,13 @@ class _CalendarViewState extends State<_CalendarView> {
                 ),
               );
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.logout),

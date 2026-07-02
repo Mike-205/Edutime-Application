@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/widgets/privacy_notice.dart';
 import '../bloc/auth_bloc.dart';
 
 /// Account registration. Carries the Kenya DPA 2019 obligations surfaced at
@@ -119,7 +120,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         : null,
                   ),
                   const SizedBox(height: 24),
-                  const _PrivacyNotice(),
+                  const PrivacyNotice(),
                   CheckboxListTile(
                     value: _consented,
                     onChanged: (value) =>
@@ -174,40 +175,3 @@ class _RegisterPageState extends State<RegisterPage> {
 }
 
 /// The DPA-mandated notice shown at registration.
-class _PrivacyNotice extends StatelessWidget {
-  const _PrivacyNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Privacy notice', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Edutime stores only what it needs to schedule your lectures: '
-              'your name, email, cohort, role, and notification preferences. '
-              'Your email is visible only to you — never to classmates. You '
-              'can request deletion of your account and data at any time from '
-              'your profile.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Edutime is an independent student project. It is not an official '
-              'service of Chuka University.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
