@@ -4,7 +4,7 @@
 
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { adminClient, getCallerId, getCallerProfile } from "../_shared/auth.ts";
-import { notifyEventChange } from "../_shared/notify.ts";
+import { dispatchAfterResponse } from "../_shared/notify.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -64,8 +64,8 @@ Deno.serve(async (req: Request) => {
   );
 
   // One notification for the action (a whole series -> one), keyed off the
-  // occurrence the rep acted on.
-  await notifyEventChange(admin, {
+  // occurrence the rep acted on; dispatched after the response.
+  dispatchAfterResponse(admin, {
     cohortId: caller.cohortId,
     changeType: "canceled",
     title: (existing.title as string | null) ?? null,

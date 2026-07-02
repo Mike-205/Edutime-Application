@@ -3,6 +3,25 @@ import { sendPushMulti } from "./fcm.ts";
 
 export type ChangeType = "created" | "updated" | "canceled";
 
+/// Runs the dispatch AFTER the HTTP response so a rep's write returns
+/// immediately and never blocks on — or hangs waiting for — the FCM fan-out.
+/// Uses the Edge runtime's waitUntil to keep the task alive past the response;
+/// falls back to fire-and-forget where it isn't available.
+export function dispatchAfterResponse(
+  admin: SupabaseClient,
+  change: EventChange,
+): void {
+  const task = notifyEventChange(admin, change);
+  const runtime = (globalThis as {
+    EdgeRuntime?: { waitUntil(p: Promise<unknown>): void };
+  }).EdgeRuntime;
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(task);
+  } else {
+    void task.catch(() => {});
+  }
+}
+
 export interface EventChange {
   cohortId: string;
   changeType: ChangeType;

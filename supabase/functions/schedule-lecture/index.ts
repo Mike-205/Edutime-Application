@@ -12,7 +12,7 @@
 import { corsHeaders, json } from "../_shared/cors.ts";
 import { adminClient, getCallerId, getCallerProfile } from "../_shared/auth.ts";
 import { findConflict, isExclusionViolation, Slot } from "../_shared/lectures.ts";
-import { notifyEventChange } from "../_shared/notify.ts";
+import { dispatchAfterResponse } from "../_shared/notify.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_WEEKS = 26;
@@ -126,8 +126,9 @@ Deno.serve(async (req: Request) => {
     })),
   );
 
-  // Notify the cohort — once for the whole action (series -> one notification).
-  await notifyEventChange(admin, {
+  // Notify the cohort — once for the whole action (series -> one notification),
+  // after the response so the rep isn't blocked on the FCM fan-out.
+  dispatchAfterResponse(admin, {
     cohortId,
     changeType: "created",
     title,
