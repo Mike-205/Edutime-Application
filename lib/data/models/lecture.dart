@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 
-/// Mirrors the `lecture_status` enum in the database.
+import 'venue.dart';
+
+/// Mirrors the `event_status` enum in the database.
 enum LectureStatus { scheduled, canceled, rescheduled }
 
 LectureStatus lectureStatusFromDb(String value) => switch (value) {
@@ -10,39 +12,65 @@ LectureStatus lectureStatusFromDb(String value) => switch (value) {
   _ => throw ArgumentError('Unknown status: $value'),
 };
 
-/// A scheduled academic event. Recurring series are stored as one row per
-/// occurrence sharing [recurrenceGroupId]; [recurrenceRule] is display metadata
-/// only, not the source of truth.
+/// A scheduled academic event (the `events` table). The unit is FK'd via
+/// [courseId]; [courseName] is the joined display name (null when read from a
+/// realtime stream, which can't embed joins). Recurring series are stored as one
+/// row per occurrence sharing [recurrenceGroupId]; [recurrenceRule] is display
+/// metadata only, not the source of truth.
 class Lecture extends Equatable {
   const Lecture({
     required this.id,
     required this.cohortId,
-    required this.unitName,
+    required this.courseId,
     required this.lecturerName,
     required this.venueId,
     required this.startTime,
     required this.endTime,
     required this.status,
+    this.title,
+    this.courseName,
+    this.venueName,
     this.recurrenceGroupId,
     this.recurrenceRule,
   });
 
-  factory Lecture.fromMap(Map<String, dynamic> map) => Lecture(
-    id: map['id'] as String,
-    cohortId: map['cohort_id'] as String,
-    unitName: map['unit_name'] as String,
-    lecturerName: map['lecturer_name'] as String,
-    venueId: map['venue_id'] as String,
-    startTime: DateTime.parse(map['start_time'] as String),
-    endTime: DateTime.parse(map['end_time'] as String),
-    status: lectureStatusFromDb(map['status'] as String),
-    recurrenceGroupId: map['recurrence_group_id'] as String?,
-    recurrenceRule: map['recurrence_rule'] as String?,
-  );
+  factory Lecture.fromMap(Map<String, dynamic> map) {
+    // `course:courses(...)` / `venue:venues(...)` embed as an object, or a
+    // single-element list depending on PostgREST; both absent on realtime streams.
+    final course = _embed(map['course']);
+    final venue = _embed(map['venue']);
+    return Lecture(
+      id: map['id'] as String,
+      cohortId: map['cohort_id'] as String,
+      courseId: map['course_id'] as String,
+      title: map['title'] as String?,
+      // Prefer the embedded join; fall back to the flat name the cache stores.
+      courseName: (course?['name'] as String?) ?? map['course_name'] as String?,
+      venueName: venue != null
+          ? Venue.composeName(venue)
+          : map['venue_name'] as String?,
+      lecturerName: map['lecturer_name'] as String,
+      venueId: map['venue_id'] as String,
+      startTime: DateTime.parse(map['start_time'] as String),
+      endTime: DateTime.parse(map['end_time'] as String),
+      status: lectureStatusFromDb(map['status'] as String),
+      recurrenceGroupId: map['recurrence_group_id'] as String?,
+      recurrenceRule: map['recurrence_rule'] as String?,
+    );
+  }
+
+  static Map<String, dynamic>? _embed(Object? raw) => switch (raw) {
+    final List l => l.isEmpty ? null : l.first as Map<String, dynamic>,
+    final Map m => m.cast<String, dynamic>(),
+    _ => null,
+  };
 
   final String id;
   final String cohortId;
-  final String unitName;
+  final String courseId;
+  final String? title;
+  final String? courseName;
+  final String? venueName;
   final String lecturerName;
   final String venueId;
   final DateTime startTime;
@@ -51,11 +79,37 @@ class Lecture extends Equatable {
   final String? recurrenceGroupId;
   final String? recurrenceRule;
 
+  /// Heading to show for the lecture: a custom title if set, else the course
+  /// name, else a neutral fallback (e.g. when read from a stream without a join).
+  String get displayName => title ?? courseName ?? 'Lecture';
+
+  /// A row shape [Lecture.fromMap] can read back, for the offline cache. The
+  /// already-composed course/venue names are stored as flat keys (the fromMap
+  /// fallbacks pick them up) — no need to reconstruct join envelopes.
+  Map<String, dynamic> toCacheJson() => {
+    'id': id,
+    'cohort_id': cohortId,
+    'course_id': courseId,
+    'title': title,
+    'course_name': courseName,
+    'venue_name': venueName,
+    'lecturer_name': lecturerName,
+    'venue_id': venueId,
+    'start_time': startTime.toIso8601String(),
+    'end_time': endTime.toIso8601String(),
+    'status': status.name,
+    'recurrence_group_id': recurrenceGroupId,
+    'recurrence_rule': recurrenceRule,
+  };
+
   @override
   List<Object?> get props => [
     id,
     cohortId,
-    unitName,
+    courseId,
+    title,
+    courseName,
+    venueName,
     lecturerName,
     venueId,
     startTime,

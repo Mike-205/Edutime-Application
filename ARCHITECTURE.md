@@ -24,7 +24,7 @@
 | Client           | **Flutter (Dart)**                              | Single codebase, Android-first with free iOS path; runs in Android Studio; strong offline + real-time support. |
 | State management | **BLoC**                                        | Developer is comfortable with it; predictable, testable, scales to real-time streams. |
 | Calendar UI      | Custom widget on **`table_calendar`**           | Day/week/semester views required by the student journey. |
-| Auth             | **Supabase Auth** (email/password, JWT claims)  | Built-in, free, role claim carried in JWT; integrates with RLS. |
+| Auth             | **Supabase Auth** (email/password)              | Built-in, free. JWT carries identity (`auth.uid()`) only — **role is read from the `users` table** via `get_my_role()`, never from the JWT (see Access Control). |
 | Database         | **Supabase Postgres** (+ RLS)                   | Relational data with strong integrity (constraints), real-time, and row-level isolation — matches the cross-cohort data-isolation requirement. |
 | Real-time        | **Supabase Realtime**                           | Live calendar + venue-availability updates (the "within seconds" journey). |
 | Server logic     | **Supabase Edge Functions** (Deno/TypeScript)   | Readable conflict errors, FCM dispatch — UX layer on top of DB enforcement. |
@@ -38,8 +38,10 @@
 ## Architecture Overview
 
 Edutime is a thin Flutter client over a managed Supabase backend. The client
-authenticates with Supabase Auth and holds a JWT carrying the user's role
-(`student` / `class_rep` / `faculty_rep`). All data access is mediated by
+authenticates with Supabase Auth and holds a JWT carrying **identity only**
+(`auth.uid()`); the user's role (`student` / `class_rep` / `faculty_rep`) lives
+in the `users` table and is read via `get_my_role()`, never from the JWT (this
+makes promotion instant — no forced logout). All data access is mediated by
 **Row Level Security** — the client is never trusted to enforce permissions, so
 a student physically cannot read another cohort's data or write a lecture, even
 with a tampered client. This is the technical realization of the discovery
@@ -116,6 +118,41 @@ other policy is considered complete):
 **Enforcement hierarchy:** Postgres constraint (ground truth) → Edge Function
 pre-check (readable error) → Flutter pre-check (instant UX). Nothing overrides
 the constraint.
+
+## Non-Functional Requirements — Free-Tier Efficiency
+
+The free tier only ever has to serve **≤ 500 MAU / ≤ 3 cohorts** — by the hard
+upgrade trigger (MAU > 500 → Pro $25/mo), any larger scale is already a paid-tier
+concern. So "stay on $0" means *stay correct and lean up to ~500 MAU*, not
+"serve 20,000 students for free." The real free-tier limits that bite are
+**bandwidth egress (~5GB/mo)** and **Realtime concurrent connections (~200)** —
+not DB size or MAU. These NFRs are non-negotiable design constraints:
+
+1. **Realtime fan-out uses Broadcast-from-Postgres, not Postgres Changes.** A
+   trigger calls `realtime.broadcast_changes()` onto a per-cohort topic
+   (`cohort:{id}`); authorization is checked once at subscribe time, not per
+   message per subscriber. Postgres Changes re-evaluates RLS for every subscriber
+   on every row change and does not scale — and a recurring series (one row per
+   occurrence, e.g. 14 rows) would fan out 14 × N messages under it vs. a **single**
+   "schedule changed, refetch range" nudge under Broadcast.
+2. **Realtime is foreground-only; FCM reaches everyone else.** Most users have the
+   app closed; they do not need a live socket — **FCM push** (effectively
+   uncapped, free) delivers changes to backgrounded users. The client tears down
+   its Realtime subscription when the app backgrounds and reconnects on
+   foreground. This keeps concurrent connections ≈ "students actively viewing the
+   calendar right now" (a small number), never MAU — which is why the ~200 cap is
+   a non-issue at MVP. (Note: scoping *which topic* a client joins does not reduce
+   connection count — one socket per client regardless; backgrounding is what
+   frees connections.)
+3. **Calendar reads are time-windowed + delta-synced against the local cache.**
+   Query only the visible day/week range, never the whole semester; sync deltas
+   via `where updated_at > last_sync`; never `select *`; **never** ship
+   `event_audit_log` / JSON snapshots to clients. This is the fix for egress, the
+   "silent killer." Profile photos in Storage also count against egress — serve
+   small transformed sizes or defer photos entirely at MVP.
+4. **FCM dispatch is one batched Edge Function invocation per change** — loop over
+   device tokens *inside* the function, not one invocation per recipient — to stay
+   well under the ~500K invocation cap.
 
 ## Data Model (Draft)
 
@@ -196,7 +233,7 @@ endpoints). Mutations with business logic go through **Edge Functions**:
 | Service | Purpose | Integration |
 |---|---|---|
 | Supabase | Auth, Postgres, Realtime, Edge Functions, Storage | Supabase CLI + client SDK |
-| Firebase Cloud Messaging | Push notifications | FCM SDK in Flutter; dispatched by Edge Function |
+| Firebase Cloud Messaging | Push notifications | FCM SDK in Flutter; dispatched by Edge Function via **FCM HTTP v1** (service-account JSON + OAuth2 JWT). Legacy server-key API is shut down — v1 only. |
 | Resend | Transactional onboarding email | API call from Edge Function |
 | Google Play | App distribution (closed testing → public) | Play Console ($25 one-time) |
 | GitHub | Public repo + CI/CD | GitHub Actions + Supabase CLI |
@@ -244,8 +281,10 @@ endpoints). Mutations with business logic go through **Edge Functions**:
   cohorts (branching deferred to phase 2; must not influence MVP model).
 - **No enforced unit codes** — lectures reference units by free-text name; no
   units table/FK at MVP (removes class-rep setup burden).
-- **Class-rep approval for cohort join** — students request, rep approves;
-  prevents ghost students and wrong-cohort placement.
+- **Self-service cohort join by code** — student enters a rep-generated,
+  regeneratable join code → immediate access; no approval queue. The rep's
+  remove-student action is the safety valve (wrong-cohort self-corrects).
+  (Supersedes the earlier rep-approval design — removed at pressure test.)
 - **RLS is mandatory and sole authority** — no client-side role check is
   authoritative.
 - **Offline tolerance** — cached schedule readable offline; writes require
@@ -299,7 +338,12 @@ Still open — to settle during build:
 
 1. **FCM dispatch mechanism.** Confirm trigger path: Supabase **Database
    Webhook → Edge Function → FCM** (recommended) vs. `pg_net` from a trigger.
-   Also: how device FCM tokens are stored/refreshed per user.
+   Also: how device FCM tokens are stored/refreshed per user. **Note:** the send
+   uses **FCM HTTP v1** — the Edge Function signs a JWT with the service-account
+   private key (RS256), exchanges it for a short-lived OAuth2 access token, then
+   calls the v1 endpoint. The deprecated `FCM_SERVER_KEY` path no longer exists.
+   Prototype this end-to-end **first** — it is the steepest backend learning
+   cliff and the most-defended feature.
 2. **Staging environment.** Whether to run a separate staging Supabase project
    (free-tier project limits) or test against local + production only at MVP.
 3. **Faculty Rep email type** (carried from discovery) — `@chuka.ac.ke` vs.

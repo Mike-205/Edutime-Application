@@ -34,6 +34,7 @@ merging → `/testing` before closing. One branch at a time; never two at once.
 and no user can ever read another user's `email`.
 
 **Includes:**
+
 - Supabase Auth email/password wiring (client + `AuthBloc`); session restore.
 - Registration flow surfacing the DPA privacy notice + "independent student
   project, not official Chuka" disclaimer (Kenya DPA 2019 requirement).
@@ -57,6 +58,7 @@ test against RLS), login/logout/session-restore work, and role is read only via
 code instantly, and a class rep can manage membership.
 
 **Includes:**
+
 - Faculty / Program / Cohort models + read access under RLS.
 - `join-cohort-by-code` Edge Function — valid code → immediate membership, **no
   approval queue**.
@@ -76,13 +78,16 @@ data only, never personal data.
 physically impossible. This is the project's core invariant.
 
 **Includes:**
+
 - `schedule-lecture` Edge Function: Flutter pre-check → Edge pre-check (readable
-  error) → insert under DB enforcement. Writes the `lecture_audit_log` row.
+  error) → insert under DB enforcement. Writes the `event_audit_log` row.
+  Events reference the unit via `course_id` (FK to `courses`); the form picks a
+  course, not free text (Round 2 redesign).
 - `edit-lecture` and `cancel-lecture` (cancel frees the venue immediately).
 - Recurring series = **one row per occurrence** sharing `recurrence_group_id`;
   each occurrence conflict-checked individually.
-- Exercises the `0002` `EXCLUDE` constraints (`lectures_no_venue_overlap`,
-  `lectures_no_cohort_overlap`) as ground truth — Edge/Flutter checks are UX only.
+- Exercises the `0002` `EXCLUDE` constraints (`events_no_venue_overlap`,
+  `events_no_cohort_overlap`) as ground truth — Edge/Flutter checks are UX only.
 - Postgres-level tests proving two racing inserts cannot double-book a venue.
 
 **Done when:** No overlapping venue or cohort booking can be persisted (proven by a
@@ -97,6 +102,7 @@ recurring series check each occurrence independently.
 within seconds of a rep's change.
 
 **Includes:**
+
 - `table_calendar`-based day / week / semester views.
 - Supabase Realtime subscriptions driving the calendar and venue-availability flips.
 - Offline tolerance: cached schedule readable offline; clear feedback when a write
@@ -107,6 +113,15 @@ within seconds of a rep's change.
 calendar within seconds, venues flip available/occupied live, and the cached
 schedule renders offline.
 
+**Status: ✅ complete (merged to `dev`).** Realtime uses **Postgres Changes as a
+nudge → windowed refetch** (debounced), not Broadcast — adequate at MVP scale;
+migrating to Broadcast-from-Postgres is deferred until nearer the ~200-connection
+wall (which the MAU>500 upgrade trigger catches first). Cross-cohort venue reads
+go through the `venue_availability` SECURITY DEFINER function (`0009` also adds
+`events` to the realtime publication); cross-cohort venue *flips* are refresh/
+time-based, since RLS gives no realtime nudge for other cohorts. Offline cache is
+a shared_preferences JSON snapshot per cohort.
+
 ---
 
 ### feature/05-notifications
@@ -115,6 +130,7 @@ schedule renders offline.
 history.
 
 **Includes:**
+
 - DB Database Webhook → `dispatch-fcm` Edge Function (secured by
   `FCM_WEBHOOK_SECRET`), sending new/updated/canceled push via FCM.
 - `notifications` rows written for in-app history (read/unread).
@@ -125,6 +141,17 @@ history.
 **Done when:** Scheduling/editing/canceling a lecture delivers an FCM push to
 cohort students and writes a matching `notifications` row; tokens refresh correctly.
 
+**Status: ✅ complete (merged to `dev`).** Dispatch is **Edge-initiated**, not a DB
+webhook: schedule/edit/cancel-lecture run the shared `notifyEventChange()` as a
+post-response task (`waitUntil`), one notification per action (a whole series →
+one). `0010` adds `device_tokens` (own-row RLS, direct client upsert), the
+`notifications` grant, and realtime for the live badge; the client registers its
+FCM token on auth via `PushService` (Firebase guarded, so no-config dev still
+runs). Actual FCM *delivery* is unverified in-repo (needs `FCM_SERVICE_ACCOUNT` +
+a real device). **Follow-ups (from code review, deferred):** unregister the device
+token on sign-out (mitigated by PK reassign on next login); optional foreground
+heads-up banner (`onMessage`) — the badge/list already update live via realtime.
+
 ---
 
 ### feature/06-instrumentation-polish
@@ -133,6 +160,7 @@ cohort students and writes a matching `notifications` row; tokens refresh correc
 keep-alive holds, and the DPA + UX edges are handled.
 
 **Includes:**
+
 - `daily-snapshot` Edge Function populating `daily_snapshots` (MAU, active cohort
   count, DB-size estimate) once/day.
 - Verify `keepalive.yml` cron prevents the 7-day free-tier pause and logs the latest
@@ -153,5 +181,7 @@ offline/error states cleanly.
   them up and prove them, they do not redefine the schema by hand.
 - Never change the schema by hand — add a numbered migration in
   `supabase/migrations/`.
-- Phase-2 scope (branch/merge, combined lectures, faculty approval queues, unit
-  registry, lecturer accounts, web app) stays **out** of these milestones.
+- Phase-2 scope (branch/merge, combined lectures, faculty approval queues,
+  lecturer accounts, web app) stays **out** of these milestones. NOTE: the unit
+  registry (`courses`) is now **in** scope — `events.course_id` FKs to it
+  (Round 2 decision, 2026-07-02). Lecturer names stay free text.
