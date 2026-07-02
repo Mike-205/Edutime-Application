@@ -10,6 +10,7 @@ import '../../../data/repositories/schedule_cache.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../../cohort/view/cohort_page.dart';
 import '../../scheduling/view/manage_lectures_page.dart';
+import '../../venues/view/venue_availability_page.dart';
 import '../bloc/calendar_bloc.dart';
 
 /// The student's live schedule (Journey 2): a `table_calendar` with semester /
@@ -78,6 +79,15 @@ class _CalendarViewState extends State<_CalendarView> {
                 ),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.meeting_room_outlined),
+            tooltip: 'Find a free room',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const VenueAvailabilityPage(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.people_outline),
             tooltip: 'My cohort',

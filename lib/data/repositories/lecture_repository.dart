@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/course.dart';
 import '../models/lecture.dart';
 import '../models/venue.dart';
+import '../models/venue_availability.dart';
 
 /// A user-presentable scheduling failure. The Edge Functions return a readable
 /// `message` for conflicts (e.g. "That venue is taken by Stats II …"); this
@@ -77,6 +78,20 @@ class LectureRepository {
         (a, b) =>
             a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
       );
+  }
+
+  /// Physical venues and whether each is occupied at [at] (Journey 3). Goes
+  /// through the `venue_availability` DB function (SECURITY DEFINER) because
+  /// occupancy is cross-cohort and RLS scopes event reads to the caller's own
+  /// cohort — the function reveals only room busy-ness, no schedule details.
+  Future<List<VenueSlot>> venueAvailability(DateTime at) async {
+    final rows = await _client.rpc(
+      'venue_availability',
+      params: {'at_time': at.toUtc().toIso8601String()},
+    );
+    return (rows as List)
+        .map((r) => VenueSlot.fromMap((r as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   /// Courses for the signed-in user's cohort program — the schedulable units
