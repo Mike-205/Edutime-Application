@@ -4,7 +4,7 @@ import 'app.dart';
 import 'core/config/env.dart';
 import 'core/supabase/supabase_client.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (Env.isConfigured) {
