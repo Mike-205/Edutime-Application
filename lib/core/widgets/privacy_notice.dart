@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// The Kenya DPA privacy notice + "independent student project" disclaimer,
-/// shown at registration and in settings. Keep the wording in one place.
+/// shown at registration (before account creation) and in settings. Names every
+/// field collected — including the students-only `reg_number` the DPA requires
+/// called out. Keep the wording in this one place.
 class PrivacyNotice extends StatelessWidget {
   const PrivacyNotice({super.key});
 
@@ -23,7 +25,7 @@ class PrivacyNotice extends StatelessWidget {
               '(plus a registration number for students). Your email is visible '
               'only to you — never to classmates. Your data is not shared with '
               'third parties. You can request deletion of your account and data '
-              'at any time below.',
+              'at any time from Settings.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),

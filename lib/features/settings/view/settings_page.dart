@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/widgets/privacy_notice.dart';
 import '../../../data/models/app_user.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../auth/bloc/auth_bloc.dart';
 import '../bloc/settings_bloc.dart';
-import 'privacy_notice.dart';
 
 /// Profile + account settings: who you are, the privacy notice, and the DPA
 /// account-deletion path.
