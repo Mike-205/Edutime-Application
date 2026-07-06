@@ -53,10 +53,12 @@ class LectureRepository {
           'venue:venues(type, label, room:rooms(number, building:buildings(abbreviation)))',
         )
         .neq('status', 'canceled');
-    if (from != null)
+    if (from != null) {
       query = query.gte('end_time', from.toUtc().toIso8601String());
-    if (to != null)
+    }
+    if (to != null) {
       query = query.lte('start_time', to.toUtc().toIso8601String());
+    }
     final rows = await query.order('start_time');
     return rows.map(Lecture.fromMap).toList();
   }
