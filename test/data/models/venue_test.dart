@@ -40,7 +40,11 @@ void main() {
     });
 
     test('falls back to "Online" when an online venue has no label', () {
-      final venue = Venue.fromMap({'id': 'v3', 'type': 'online', 'label': null});
+      final venue = Venue.fromMap({
+        'id': 'v3',
+        'type': 'online',
+        'label': null,
+      });
       expect(venue.displayName, 'Online');
     });
   });

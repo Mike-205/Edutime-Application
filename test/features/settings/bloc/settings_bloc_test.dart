@@ -17,15 +17,12 @@ void main() {
         when(() => repo.hasPendingDeletion()).thenAnswer((_) async => true),
     build: () => SettingsBloc(repo),
     act: (bloc) => bloc.add(const SettingsStarted()),
-    expect: () => const [
-      SettingsState(loading: false, pendingDeletion: true),
-    ],
+    expect: () => const [SettingsState(loading: false, pendingDeletion: true)],
   );
 
   blocTest<SettingsBloc, SettingsState>(
     'requesting deletion submits then marks pending',
-    setUp: () =>
-        when(() => repo.requestDeletion()).thenAnswer((_) async {}),
+    setUp: () => when(() => repo.requestDeletion()).thenAnswer((_) async {}),
     build: () => SettingsBloc(repo),
     seed: () => const SettingsState(loading: false),
     act: (bloc) => bloc.add(const DeletionRequested()),

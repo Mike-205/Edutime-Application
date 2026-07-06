@@ -23,17 +23,18 @@ class NotificationItem extends Equatable {
     this.readAt,
   });
 
-  factory NotificationItem.fromMap(Map<String, dynamic> map) => NotificationItem(
-    id: map['id'] as String,
-    title: map['title'] as String,
-    message: map['message'] as String,
-    type: notifTypeFromDb(map['type'] as String),
-    eventId: map['event_id'] as String?,
-    readAt: map['read_at'] == null
-        ? null
-        : DateTime.parse(map['read_at'] as String),
-    createdAt: DateTime.parse(map['created_at'] as String),
-  );
+  factory NotificationItem.fromMap(Map<String, dynamic> map) =>
+      NotificationItem(
+        id: map['id'] as String,
+        title: map['title'] as String,
+        message: map['message'] as String,
+        type: notifTypeFromDb(map['type'] as String),
+        eventId: map['event_id'] as String?,
+        readAt: map['read_at'] == null
+            ? null
+            : DateTime.parse(map['read_at'] as String),
+        createdAt: DateTime.parse(map['created_at'] as String),
+      );
 
   final String id;
   final String title;

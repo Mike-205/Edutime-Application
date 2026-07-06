@@ -42,7 +42,10 @@ class LectureRepository {
   /// the calendar. RLS scopes rows to the caller's cohort. [from]/[to] bound the
   /// window (NFR: time-windowed reads, never a full-semester refetch); omit for
   /// the whole schedule.
-  Future<List<Lecture>> loadCohortSchedule({DateTime? from, DateTime? to}) async {
+  Future<List<Lecture>> loadCohortSchedule({
+    DateTime? from,
+    DateTime? to,
+  }) async {
     var query = _client
         .from('events')
         .select(
@@ -50,8 +53,10 @@ class LectureRepository {
           'venue:venues(type, label, room:rooms(number, building:buildings(abbreviation)))',
         )
         .neq('status', 'canceled');
-    if (from != null) query = query.gte('end_time', from.toUtc().toIso8601String());
-    if (to != null) query = query.lte('start_time', to.toUtc().toIso8601String());
+    if (from != null)
+      query = query.gte('end_time', from.toUtc().toIso8601String());
+    if (to != null)
+      query = query.lte('start_time', to.toUtc().toIso8601String());
     final rows = await query.order('start_time');
     return rows.map(Lecture.fromMap).toList();
   }
@@ -73,11 +78,10 @@ class LectureRepository {
         .select(
           'id, type, label, room:rooms(number, building:buildings(abbreviation, name))',
         );
-    return rows.map(Venue.fromMap).toList()
-      ..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
+    return rows.map(Venue.fromMap).toList()..sort(
+      (a, b) =>
+          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+    );
   }
 
   /// Physical venues and whether each is occupied at [at] (Journey 3). Goes
