@@ -49,7 +49,12 @@ class SettingsState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [loading, pendingDeletion, submitting, errorMessage];
+  List<Object?> get props => [
+    loading,
+    pendingDeletion,
+    submitting,
+    errorMessage,
+  ];
 }
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {

@@ -300,7 +300,8 @@ class _VenuePicker extends StatelessWidget {
           ),
           items: venues
               .map(
-                (v) => DropdownMenuItem(value: v.id, child: Text(v.displayName)),
+                (v) =>
+                    DropdownMenuItem(value: v.id, child: Text(v.displayName)),
               )
               .toList(),
           onChanged: onChanged,

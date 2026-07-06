@@ -115,10 +115,12 @@ class _DeletionSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     if (state.loading) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(16),
-        child: CircularProgressIndicator(),
-      ));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
     if (state.pendingDeletion) {
       return Card(

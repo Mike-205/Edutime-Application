@@ -91,10 +91,7 @@ class VenueAvailabilityBloc
     Emitter<VenueAvailabilityState> emit,
   ) => _load(event.at, emit);
 
-  Future<void> _load(
-    DateTime at,
-    Emitter<VenueAvailabilityState> emit,
-  ) async {
+  Future<void> _load(DateTime at, Emitter<VenueAvailabilityState> emit) async {
     emit(state.copyWith(at: at, loading: true, clearError: true));
     try {
       final venues = await _repository.venueAvailability(at);

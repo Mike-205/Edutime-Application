@@ -54,7 +54,8 @@ class _NotificationsView extends StatelessWidget {
           return ListView.separated(
             itemCount: state.items.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) => _NotificationTile(item: state.items[i]),
+            itemBuilder: (context, i) =>
+                _NotificationTile(item: state.items[i]),
           );
         },
       ),
@@ -87,9 +88,8 @@ class _NotificationTile extends StatelessWidget {
           : Icon(Icons.circle, size: 10, color: scheme.primary),
       onTap: item.isRead
           ? null
-          : () => context.read<NotificationBloc>().add(
-              NotificationRead(item.id),
-            ),
+          : () =>
+                context.read<NotificationBloc>().add(NotificationRead(item.id)),
     );
   }
 

@@ -184,8 +184,9 @@ class _CalendarViewState extends State<_CalendarView> {
               const Divider(height: 1),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: () async =>
-                      context.read<CalendarBloc>().add(const CalendarRefreshed()),
+                  onRefresh: () async => context.read<CalendarBloc>().add(
+                    const CalendarRefreshed(),
+                  ),
                   child: _Agenda(day: _selectedDay, lectures: dayLectures),
                 ),
               ),

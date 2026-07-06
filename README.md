@@ -38,8 +38,8 @@ supabase/
 ## Prerequisites
 
 - **Flutter** 3.41.x (this repo uses [FVM](https://fvm.app): `fvm use 3.41.2`).
-- **Supabase CLI** — https://supabase.com/docs/guides/cli  *(not yet installed)*
-- **Docker** — required by `supabase start` for the local stack  *(not yet installed)*
+- **Supabase CLI** — https://supabase.com/docs/guides/cli
+- **Docker** — required by `supabase start` for the local stack
 - **Deno** — Edge Functions runtime (bundled with the Supabase CLI).
 
 ## Setup

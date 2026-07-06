@@ -111,10 +111,14 @@ class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
     // Subscribe to the realtime nudge; each change triggers a windowed refetch,
     // debounced so a burst collapses to one fetch (see _scheduleRefetch).
     // skip(1) drops the stream's initial snapshot — we just fetched it above.
-    _sub ??= _repository.watchMyCohort().skip(1).listen(
-      (_) => _scheduleRefetch(),
-      onError: (_) {}, // transport hiccups surface as a failed refetch instead
-    );
+    _sub ??= _repository
+        .watchMyCohort()
+        .skip(1)
+        .listen(
+          (_) => _scheduleRefetch(),
+          onError:
+              (_) {}, // transport hiccups surface as a failed refetch instead
+        );
   }
 
   /// Coalesce bursts into a single refetch. A 14-occurrence recurring series
