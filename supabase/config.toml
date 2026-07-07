@@ -1,0 +1,59 @@
+# Supabase local config. `project_id` links to a hosted project after
+# `supabase link`. Requires the Supabase CLI + Docker to run locally.
+project_id = "edutime"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[analytics]
+# Logflare log-aggregation container. Disabled locally: it fails its health
+# check on some Docker setups and is not needed for MVP dev. Unrelated to the
+# app's daily_snapshots metrics. Re-enable if you need the Studio Logs UI.
+enabled = false
+
+[auth]
+enabled = true
+# Email/password auth with role enforced via the users table (not JWT claims).
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false  # MVP: enable in production before launch
+
+[functions.schedule-lecture]
+verify_jwt = true
+
+[functions.edit-lecture]
+verify_jwt = true
+
+[functions.cancel-lecture]
+verify_jwt = true
+
+[functions.join-cohort-by-code]
+verify_jwt = true
+
+[functions.regenerate-join-code]
+verify_jwt = true
+
+[functions.remove-student]
+verify_jwt = true
+
+[functions.promote-class-rep]
+verify_jwt = true
+
+[functions.dispatch-fcm]
+verify_jwt = false  # invoked by DB webhook with a shared secret, not a user JWT
+
+[functions.daily-snapshot]
+verify_jwt = false  # invoked on a schedule
