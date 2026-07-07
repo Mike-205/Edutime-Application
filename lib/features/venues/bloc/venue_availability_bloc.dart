@@ -65,10 +65,9 @@ class VenueAvailabilityState extends Equatable {
 class VenueAvailabilityBloc
     extends Bloc<VenueAvailabilityEvent, VenueAvailabilityState> {
   VenueAvailabilityBloc({
-    required LectureRepository repository,
+    required this._repository,
     required DateTime initialAt,
-  }) : _repository = repository,
-       super(VenueAvailabilityState(at: initialAt)) {
+  }) : super(VenueAvailabilityState(at: initialAt)) {
     on<AvailabilityRequested>(_onRequested);
     on<_AvailabilityNudged>((_, emit) => _load(state.at, emit));
     // Debounce the nudge so a burst (e.g. a recurring series) is one re-query.

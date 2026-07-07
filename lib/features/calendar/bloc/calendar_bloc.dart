@@ -73,12 +73,10 @@ class CalendarState extends Equatable {
 
 class CalendarBloc extends Bloc<CalendarEvent, CalendarState> {
   CalendarBloc({
-    required LectureRepository repository,
-    required ScheduleCache cache,
+    required this._repository,
+    required this._cache,
     required this.cohortId,
-  }) : _repository = repository,
-       _cache = cache,
-       super(const CalendarState()) {
+  }) : super(const CalendarState()) {
     on<CalendarStarted>(_onStarted);
     on<CalendarRefreshed>((_, emit) => _refetch(emit));
     on<_CalendarChanged>((_, emit) => _refetch(emit));
